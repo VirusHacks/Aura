@@ -1,0 +1,89 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  AEROSCOPE web app. The Next.js standalone server runs on Lambda behind the
+  Lambda Web Adapter (response streaming via a function URL), fronted by
+  CloudFront. Package with ./build.sh before deploying.
+
+Parameters:
+  AqApiUrl:
+    Type: String
+    Default: ""
+    Description: ApiUrl output of the aeroscope-infra stack. Empty = bundled demo dataset.
+  AqApiKey:
+    Type: String
+    Default: ""
+    NoEcho: true
+    Description: API Gateway key value for AqApiUrl (server-side only).
+
+Resources:
+  WebFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: .build/web.zip
+      Handler: run.sh
+      Runtime: nodejs22.x
+      Architectures: [arm64]
+      MemorySize: 1024
+      Timeout: 30
+      Layers:
+        - !Sub arn:aws:lambda:${AWS::Region}:753240598075:layer:LambdaAdapterLayerArm64:30
+      Environment:
+        Variables:
+          AWS_LAMBDA_EXEC_WRAPPER: /opt/bootstrap
+          AWS_LWA_INVOKE_MODE: response_stream
+          PORT: "8080"
+          HOSTNAME: 127.0.0.1
+          NODE_ENV: production
+          AEROSCOPE_AQ_API_URL: !Ref AqApiUrl
+          AEROSCOPE_AQ_API_KEY: !Ref AqApiKey
+      FunctionUrlConfig:
+        AuthType: NONE
+        InvokeMode: RESPONSE_STREAM
+
+  # Public function URLs also need lambda:InvokeFunction scoped to URL calls.
+  WebFunctionUrlInvokePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref WebFunction
+      Action: lambda:InvokeFunction
+      Principal: "*"
+      InvokedViaFunctionUrl: true
+
+  Distribution:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Enabled: true
+        Comment: AEROSCOPE web
+        HttpVersion: http2and3
+        PriceClass: PriceClass_100
+        Origins:
+          - Id: web
+            # https://<id>.lambda-url.<region>.on.aws/ -> <id>.lambda-url.<region>.on.aws
+            DomainName: !Select [2, !Split ["/", !GetAtt WebFunctionUrl.FunctionUrl]]
+            CustomOriginConfig:
+              OriginProtocolPolicy: https-only
+              OriginSSLProtocols: [TLSv1.2]
+              OriginReadTimeout: 30
+        DefaultCacheBehavior:
+          TargetOriginId: web
+          ViewerProtocolPolicy: redirect-to-https
+          AllowedMethods: [GET, HEAD, OPTIONS, PUT, PATCH, POST, DELETE]
+          Compress: true
+          CachePolicyId: 4135ea2d-6df8-44a3-9df3-4b5a84be39ad # Managed-CachingDisabled
+          OriginRequestPolicyId: b689b0a8-53d0-40ab-baf2-68738e2966ac # Managed-AllViewerExceptHostHeader
+        CacheBehaviors:
+          - PathPattern: /_next/static/*
+            TargetOriginId: web
+            ViewerProtocolPolicy: redirect-to-https
+            Compress: true
+            CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6 # Managed-CachingOptimized
+
+Outputs:
+  Url:
+    Description: Public app URL.
+    Value: !Sub https://${Distribution.DomainName}
+  FunctionUrl:
+    Description: Direct Lambda URL (origin; prefer the CloudFront URL).
+    Value: !GetAtt WebFunctionUrl.FunctionUrl

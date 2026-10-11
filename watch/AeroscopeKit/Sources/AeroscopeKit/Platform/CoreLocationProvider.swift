@@ -32,9 +32,11 @@ public final class CoreLocationProvider: NSObject, LocationProviding {
 
     public var authorization: LocationAuthorization { Self.map(manager.authorizationStatus) }
 
+    /// Mirrors Core Location's own check: only `UIBackgroundModes` counts, on
+    /// watchOS as well as iOS. A `location` entry under `WKBackgroundModes` is
+    /// ignored by Core Location and would still trip its assertion.
     public static var declaresBackgroundLocation: Bool {
-        let info = Bundle.main.infoDictionary ?? [:]
-        let modes = (info["WKBackgroundModes"] as? [String] ?? []) + (info["UIBackgroundModes"] as? [String] ?? [])
+        let modes = Bundle.main.infoDictionary?["UIBackgroundModes"] as? [String] ?? []
         return modes.contains("location")
     }
 

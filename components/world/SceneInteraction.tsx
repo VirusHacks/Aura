@@ -10,6 +10,8 @@ import { worldUniforms } from "@/lib/world-uniforms";
 import { useSimStore } from "@/store/simulation-store";
 import type { ZoneReading } from "@/types/air-quality";
 import { selectionTarget } from "@/lib/selection-target";
+import { motion } from "@/lib/live/motion";
+import { liveIsDriving, useLiveStore } from "@/store/live-store";
 
 export function nearestZone(readings: ZoneReading[], x: number, z: number, strict = true): ZoneReading | null {
   let best: ZoneReading | null = null;
@@ -25,11 +27,18 @@ export function nearestZone(readings: ZoneReading[], x: number, z: number, stric
   return best;
 }
 
-/** Invisible ground catcher: clicking open city selects the zone under the cursor. */
+/**
+ * Invisible ground catcher: clicking open city selects the zone under the
+ * cursor — or, during a live trip with click-to-walk on, walks the character there.
+ */
 export function GroundPicker() {
   const select = useSimStore((s) => s.select);
   const onClick = (e: ThreeEvent<MouseEvent>) => {
     if (e.delta > 6) return;
+    if (liveIsDriving() && useLiveStore.getState().clickToWalk) {
+      motion.target = { x: e.point.x, z: e.point.z };
+      return;
+    }
     const readings = useSimStore.getState().readings;
     const zone = nearestZone(readings, e.point.x, e.point.z);
     if (zone) select({ kind: "zone", id: zone.id }, viewForPoint(zone.position[0], zone.position[1], 96));

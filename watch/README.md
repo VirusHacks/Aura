@@ -159,7 +159,7 @@ offline → sync, live never falls back to demo, relaunch recovery).
   air gets worse, look one zone ahead on the planned route, and drop one category for
   sensitive groups. The backend runs the same rules in JavaScript.
 - **Location**: one-shot fixes when idle; continuous updates during a trip, continuing
-  in the background only because `WKBackgroundModes` declares `location` (checked at
+  in the background only because `UIBackgroundModes` declares `location` (checked at
   runtime before enabling).
 
 ## Limits and next steps

@@ -19,6 +19,9 @@ import { StreetFurniture, Vegetation } from "./StreetLife";
 import { TrafficSystem } from "./TrafficSystem";
 import { WindFlow } from "./WindFlow";
 import { LabelProjector } from "./LabelProjector";
+import { LiveAvatar, LiveRoutes } from "./LiveAvatar";
+import { motion } from "@/lib/live/motion";
+import { liveIsDriving, useLiveStore } from "@/store/live-store";
 import { SourceMarkers, ZoneMarkers } from "./ZoneMarkers";
 
 export interface SceneQuality {
@@ -52,6 +55,11 @@ export default function CityScene({ quality }: { quality: SceneQuality }) {
   const highlightedZone = selection?.kind === "zone" ? selection.id : null;
 
   const onBuilding = (index: number, point: THREE.Vector3) => {
+    // During a live trip, clicking anywhere walks there (to the street in front of the building).
+    if (liveIsDriving() && useLiveStore.getState().clickToWalk) {
+      motion.target = { x: point.x, z: point.z };
+      return;
+    }
     const zone = nearestZone(useSimStore.getState().readings, point.x, point.z, false);
     if (!zone) return;
     select({ kind: "building", id: index, zoneId: zone.id }, viewForPoint(city.buildings.x[index], city.buildings.z[index], 38));
@@ -80,6 +88,9 @@ export default function CityScene({ quality }: { quality: SceneQuality }) {
       <ZoneMarkers readings={readings} selectedId={selectedZoneId} visible={layers.labels} />
       <SourceMarkers sources={sources} selectedId={selection?.kind === "source" ? selection.id : null} visible={layers.sources} />
       <LabelProjector />
+
+      <LiveRoutes />
+      <LiveAvatar />
 
       <GroundPicker />
       <SelectionRing city={city} />

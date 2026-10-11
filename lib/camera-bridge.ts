@@ -25,4 +25,8 @@ export const cameraBridge = {
     if (!controls) return;
     controls.rotateAzimuthTo(0, true);
   },
+  /** Keeps the view centred on a moving point (the live character) without changing zoom or angle. */
+  follow(x: number, z: number) {
+    void controls?.moveTo(x, 0, z, true);
+  },
 };

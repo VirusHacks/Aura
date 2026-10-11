@@ -7,10 +7,17 @@
 	<true/>
 	<key>AeroscopeAPIBaseURL</key>
 	<string>$(AEROSCOPE_API_BASE_URL)</string>
-	<!-- Continue trip location updates when the wrist drops. Checked at runtime before use. -->
-	<key>WKBackgroundModes</key>
+	<!-- Continue trip location updates when the wrist drops. Checked at runtime before use.
+	     Core Location reads UIBackgroundModes on watchOS too; WKBackgroundModes does not count. -->
+	<key>UIBackgroundModes</key>
 	<array>
 		<string>location</string>
+	</array>
+	<!-- Must list WatchServices.refreshTaskIdentifier, or the system rejects the
+	     .backgroundTask(.appRefresh) registration and refreshes never run. -->
+	<key>BGTaskSchedulerPermittedIdentifiers</key>
+	<array>
+		<string>com.aeroscope.watch.refresh</string>
 	</array>
 	<key>NSAppTransportSecurity</key>
 	<dict>

@@ -1,6 +1,6 @@
 import Image from "next/image";
 import { ArrowRight } from "lucide-react";
-import cityShot from "@/public/landing/simulation-city.jpg";
+const cityShot = "/landing/simulation-city.jpg";
 import { Reveal } from "./Reveal";
 import { NAV_LINKS, Wordmark } from "./SiteNav";
 import { SimulationLink } from "./SimulationLink";

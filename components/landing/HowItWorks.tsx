@@ -6,7 +6,7 @@ import { motion, useScroll, useTransform } from "motion/react";
 import { getAqiColor } from "@/lib/aqi";
 import { JOURNEY } from "@/lib/landing-data";
 import type { Vec2 } from "@/types/scene";
-import zonesShot from "@/public/landing/simulation-zones.jpg";
+const zonesShot = "/landing/simulation-zones.jpg";
 import { Reveal } from "./Reveal";
 import { useJourney } from "./useJourney";
 import { WatchFace } from "./WatchFace";

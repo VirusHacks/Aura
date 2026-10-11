@@ -1,0 +1,30 @@
+{
+  "app": "npx tsx bin/aeroscope.ts",
+  "output": "cdk.out",
+  "watch": { "include": ["bin/**", "lib/**", "functions/**", "appsync/**"] },
+  "context": {
+    "stage": "dev",
+    "stages": {
+      "dev": {
+        "region": "us-east-1",
+        "webUrl": "https://d1bqrm47ueimt7.cloudfront.net",
+        "devOrigins": ["http://localhost:3000"],
+        "zonesTableName": "aeroscope-infra-ZoneBaselinesTable-NATT5OT49HML",
+        "scenariosTableName": "aeroscope-infra-ScenarioSnapshotsTable-1RX5VOKBVX7Z0",
+        "baselineProvenance": "demo",
+        "routing": "amazon-location",
+        "apnsPlatformArnSandbox": "",
+        "apnsPlatformArnProduction": "",
+        "alarmEmail": "",
+        "assetsBucket": "aws-sam-cli-managed-default-samclisourcebucket-c9i7aap8jf1g",
+        "logRetentionDays": 14,
+        "locationRetentionDays": 30
+      }
+    },
+    "@aws-cdk/aws-lambda:recognizeLayerVersion": true,
+    "@aws-cdk/core:checkSecretUsage": true,
+    "@aws-cdk/aws-iam:minimizePolicies": true,
+    "@aws-cdk/core:validateSnapshotRemovalPolicy": true,
+    "@aws-cdk/aws-lambda-nodejs:useLatestRuntimeVersion": true
+  }
+}

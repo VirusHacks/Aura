@@ -1,7 +1,7 @@
 import Foundation
 import Security
 
-/// Generic-password Keychain storage for credentials such as the API key.
+/// Generic-password Keychain storage for the sign-in session.
 public struct KeychainStore: Sendable {
     public enum KeychainError: Error, Equatable {
         case unexpectedStatus(OSStatus)
@@ -52,16 +52,18 @@ public struct KeychainStore: Sendable {
 }
 
 public extension KeychainStore {
-    static let apiKeyAccount = "aeroscope.api-key"
-    static let userKeyAccount = "aeroscope.user-key"
+    static let tokensAccount = "aeroscope.auth-tokens"
 
-    /// The stored credentials, creating the per-installation user key if missing.
-    func loadCredentials() -> BackendCredentials {
-        var userKey = string(for: Self.userKeyAccount)
-        if userKey == nil {
-            let generated = BackendCredentials.generateUserKey()
-            if (try? set(generated, for: Self.userKeyAccount)) != nil { userKey = generated }
-        }
-        return BackendCredentials(apiKey: string(for: Self.apiKeyAccount), userKey: userKey)
+    /// The signed-in session for this device, if any.
+    func loadTokens() -> AuthTokens? {
+        guard let raw = string(for: Self.tokensAccount) else { return nil }
+        return try? AeroscopeJSON.decoder().decode(AuthTokens.self, from: Data(raw.utf8))
+    }
+
+    /// Stores the session (nil signs out). Kept on this device only.
+    func saveTokens(_ tokens: AuthTokens?) throws {
+        guard let tokens else { return try set(nil, for: Self.tokensAccount) }
+        let data = try AeroscopeJSON.encoder().encode(tokens)
+        try set(String(decoding: data, as: UTF8.self), for: Self.tokensAccount)
     }
 }

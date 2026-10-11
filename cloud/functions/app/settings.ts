@@ -24,7 +24,8 @@ async function putPreferences(req: ApiRequest & { user: AuthUser }, ctx: AppCont
   const prefs: AlertPreferences = {
     alertsEnabled: v.bool(body.alertsEnabled, current.alertsEnabled),
     threshold: body.threshold as AlertPreferences["threshold"],
-    cooldownMinutes: v.intInRange(body.cooldownMinutes, 1, 240, DEFAULT_PREFERENCES.cooldownMinutes),
+    // 0 = no cooldown: every new zone at or above the threshold alerts (still once per zone and category).
+    cooldownMinutes: v.intInRange(body.cooldownMinutes, 0, 240, DEFAULT_PREFERENCES.cooldownMinutes),
     onlyDuringTrips: v.bool(body.onlyDuringTrips, current.onlyDuringTrips),
     sensitiveGroup: v.bool(body.sensitiveGroup, current.sensitiveGroup),
     lookAhead: v.bool(body.lookAhead, current.lookAhead),

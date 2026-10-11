@@ -57,7 +57,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ act
     }
     if (action === "refresh") {
       const token = store.get(COOKIE)?.value;
-      return token ? session({ accessToken: token, idToken: token, expiresIn: 86_400 }) : fail(401, "Not signed in");
+      return token ? session({ accessToken: token, idToken: token, expiresIn: 86_400 }) : Response.json({ signedIn: false });
     }
     if (action === "sign-out") {
       store.delete({ name: COOKIE, path: "/api/auth" });
@@ -103,7 +103,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ act
       }
       case "refresh": {
         const token = (await cookies()).get(COOKIE)?.value;
-        if (!token) return fail(401, "Not signed in");
+        if (!token) return Response.json({ signedIn: false }, { headers: { "cache-control": "no-store" } });
         const res = await cognito<{ AuthenticationResult: CognitoTokens }>(region, "InitiateAuth", {
           AuthFlow: "REFRESH_TOKEN_AUTH",
           ClientId: clientId,

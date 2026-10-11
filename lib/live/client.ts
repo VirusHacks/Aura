@@ -85,7 +85,8 @@ export const auth = {
   async refresh(): Promise<Session | null> {
     const res = await authCall("refresh");
     if (res.status === 401 || res.status === 503) return null;
-    return toSession(await json(res));
+    const body = await json<{ accessToken?: string; idToken?: string; expiresIn?: number; signedIn?: false }>(res);
+    return body.accessToken && body.idToken ? toSession(body as { accessToken: string; idToken: string; expiresIn: number }) : null;
   },
   async signOut() {
     await authCall("sign-out").catch(() => undefined);

@@ -1,43 +1,45 @@
 import Foundation
 
-/// HTTPS client for the AEROSCOPE watch API on API Gateway.
+/// HTTPS client for the AEROSCOPE API on API Gateway. Every call carries the
+/// signed-in user's Cognito access token; a 401 triggers one refresh and retry.
 public struct LiveBackendClient: AeroscopeBackend {
     /// Performs one HTTP exchange. Injected so tests can stub responses on
     /// every platform (watchOS ignores custom `URLProtocol` classes).
     public typealias Transport = @Sendable (URLRequest) async throws -> (Data, URLResponse)
+    /// A valid access token, or throws `AuthError.signInRequired`.
+    public typealias TokenProvider = @Sendable () async throws -> String
 
     public var mode: DataSourceMode { .live }
 
     private let baseURL: URL
-    private let userId: String
-    private let apiKey: String?
-    private let userKey: String?
+    private let accessToken: TokenProvider
+    private let refreshToken: TokenProvider?
     private let transport: Transport
     private let timeout: TimeInterval
 
-    public init(baseURL: URL, userId: String, apiKey: String?, userKey: String?, timeout: TimeInterval = 8,
+    public init(baseURL: URL, accessToken: @escaping TokenProvider, refreshToken: TokenProvider? = nil, timeout: TimeInterval = 8,
                 transport: @escaping Transport = { try await URLSession.shared.data(for: $0) }) {
         self.baseURL = baseURL
-        self.userId = userId
-        self.apiKey = apiKey?.isEmpty == true ? nil : apiKey
-        self.userKey = userKey?.isEmpty == true ? nil : userKey
+        self.accessToken = accessToken
+        self.refreshToken = refreshToken
         self.timeout = timeout
         self.transport = transport
     }
 
-    public init?(settings: BackendSettings, credentials: BackendCredentials) {
+    /// A client for the configured URL that uses (and refreshes) the session in `tokens`.
+    public init?(settings: BackendSettings, tokens: TokenStore) {
         guard let url = settings.url else { return nil }
-        self.init(baseURL: url, userId: settings.userId, apiKey: credentials.apiKey, userKey: credentials.userKey)
+        self.init(baseURL: url, accessToken: { try await tokens.accessToken() }, refreshToken: { try await tokens.refreshed().accessToken })
     }
 
     // MARK: AeroscopeBackend
 
     public func health() async throws -> HealthResponse {
-        try await send("GET", "v1/health")
+        try await send("GET", "v1/health", auth: false)
     }
 
     public func cityData() async throws -> CityDataResponse {
-        try await send("GET", "v1/city")
+        try await send("GET", "v1/city", auth: false)
     }
 
     public func currentReading(_ query: ReadingQuery) async throws -> CurrentReadingResponse {
@@ -47,7 +49,7 @@ public struct LiveBackendClient: AeroscopeBackend {
             items.append(URLQueryItem(name: "lon", value: String(format: "%.6f", p.lon)))
         }
         if let zoneId = query.zoneId { items.append(URLQueryItem(name: "zoneId", value: zoneId)) }
-        return try await send("GET", "v1/air-quality/current", query: items)
+        return try await send("GET", "v1/air-quality/current", query: items, auth: false)
     }
 
     public func perform(_ operation: BackendOperation, idempotencyKey: UUID) async throws -> OperationResult {
@@ -74,6 +76,11 @@ public struct LiveBackendClient: AeroscopeBackend {
         try await send("GET", "v1/trips/\(escape(tripId))")
     }
 
+    public func activeTrip() async throws -> TripStatusResponse? {
+        let response: ActiveTripResponse = try await send("GET", "v1/trips/active")
+        return response.trip
+    }
+
     public func recentAlerts(limit: Int) async throws -> [PollutionAlert] {
         let response: AlertsResponse = try await send("GET", "v1/alerts", query: [URLQueryItem(name: "limit", value: String(limit))])
         return response.alerts
@@ -86,6 +93,9 @@ public struct LiveBackendClient: AeroscopeBackend {
     // MARK: Transport
 
     private struct EmptyResponse: Decodable {}
+    private struct ActiveTripResponse: Decodable {
+        var trip: TripStatusResponse?
+    }
     private struct NoBody: Encodable {}
     private struct ErrorBody: Decodable {
         var error: String?
@@ -100,7 +110,7 @@ public struct LiveBackendClient: AeroscopeBackend {
 
     /// Exposed for tests: the request a call would send.
     func makeRequest(_ method: String, _ path: String, query: [URLQueryItem] = [], body: Data? = nil,
-                     idempotencyKey: String? = nil) throws -> URLRequest {
+                     idempotencyKey: String? = nil, token: String? = nil) throws -> URLRequest {
         guard var components = URLComponents(url: baseURL, resolvingAgainstBaseURL: false) else {
             throw BackendError.transport("Invalid backend URL")
         }
@@ -113,12 +123,10 @@ public struct LiveBackendClient: AeroscopeBackend {
         var request = URLRequest(url: url, cachePolicy: .reloadIgnoringLocalCacheData, timeoutInterval: timeout)
         request.httpMethod = method
         request.setValue("application/json", forHTTPHeaderField: "Accept")
-        request.setValue(userId, forHTTPHeaderField: "x-aeroscope-user")
-        if let userKey { request.setValue(userKey, forHTTPHeaderField: "x-aeroscope-user-key") }
+        if let token { request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization") }
         // The backend pushes alerts only for requests that did not come
         // straight from the watch (which already shows them in-app).
         request.setValue(Self.clientPlatform, forHTTPHeaderField: "x-aeroscope-client")
-        if let apiKey { request.setValue(apiKey, forHTTPHeaderField: "x-api-key") }
         if let idempotencyKey { request.setValue(idempotencyKey, forHTTPHeaderField: "Idempotency-Key") }
         if let body {
             request.httpBody = body
@@ -127,23 +135,26 @@ public struct LiveBackendClient: AeroscopeBackend {
         return request
     }
 
-    private func send<Response: Decodable>(_ method: String, _ path: String, query: [URLQueryItem] = []) async throws -> Response {
-        try await send(method, path, query: query, body: Optional<NoBody>.none, idempotencyKey: nil)
+    private func send<Response: Decodable>(_ method: String, _ path: String, query: [URLQueryItem] = [], auth: Bool = true) async throws -> Response {
+        try await send(method, path, query: query, body: Optional<NoBody>.none, idempotencyKey: nil, auth: auth)
     }
 
     private func send<Body: Encodable, Response: Decodable>(
-        _ method: String, _ path: String, query: [URLQueryItem] = [], body: Body?, idempotencyKey: String? = nil
+        _ method: String, _ path: String, query: [URLQueryItem] = [], body: Body?, idempotencyKey: String? = nil, auth: Bool = true
     ) async throws -> Response {
         let data = try body.map { try AeroscopeJSON.encoder().encode($0) }
-        let request = try makeRequest(method, path, query: query, body: data, idempotencyKey: idempotencyKey)
-        let responseData: Data
-        let response: URLResponse
-        do {
-            (responseData, response) = try await transport(request)
-        } catch {
-            throw BackendError.from(error)
+        // Public routes work signed out; user routes need a session.
+        let token: String?
+        do { token = try await accessToken() } catch {
+            if auth { throw BackendError.unauthorized }
+            token = nil
         }
-        guard let http = response as? HTTPURLResponse else { throw BackendError.transport("Non-HTTP response") }
+        var (responseData, http) = try await exchange(try makeRequest(method, path, query: query, body: data, idempotencyKey: idempotencyKey, token: token))
+        // An expired or revoked access token: refresh once and retry with the new one.
+        if http.statusCode == 401, token != nil, let refreshToken {
+            guard let fresh = try? await refreshToken() else { throw BackendError.unauthorized }
+            (responseData, http) = try await exchange(try makeRequest(method, path, query: query, body: data, idempotencyKey: idempotencyKey, token: fresh))
+        }
         guard (200..<300).contains(http.statusCode) else {
             throw Self.error(status: http.statusCode, body: responseData)
         }
@@ -153,6 +164,18 @@ public struct LiveBackendClient: AeroscopeBackend {
         } catch {
             throw BackendError.decoding(String(describing: error))
         }
+    }
+
+    private func exchange(_ request: URLRequest) async throws -> (Data, HTTPURLResponse) {
+        let responseData: Data
+        let response: URLResponse
+        do {
+            (responseData, response) = try await transport(request)
+        } catch {
+            throw BackendError.from(error)
+        }
+        guard let http = response as? HTTPURLResponse else { throw BackendError.transport("Non-HTTP response") }
+        return (responseData, http)
     }
 
     static var clientPlatform: String {

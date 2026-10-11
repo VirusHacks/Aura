@@ -15,6 +15,10 @@ Parameters:
     Default: ""
     NoEcho: true
     Description: API Gateway key value for AqApiUrl (server-side only).
+  AeroscopeApiUrl:
+    Type: String
+    Default: ""
+    Description: ApiUrl output of the Aeroscope-dev-App stack. Enables sign-in and the live watch link.
 
 Resources:
   WebFunction:
@@ -37,6 +41,7 @@ Resources:
           NODE_ENV: production
           AEROSCOPE_AQ_API_URL: !Ref AqApiUrl
           AEROSCOPE_AQ_API_KEY: !Ref AqApiKey
+          AEROSCOPE_API_URL: !Ref AeroscopeApiUrl
       FunctionUrlConfig:
         AuthType: NONE
         InvokeMode: RESPONSE_STREAM

@@ -15,6 +15,18 @@ public struct CityCache: Codable, Hashable, Sendable {
     }
 }
 
+/// Sign-in state of the watch (live mode needs a signed-in account).
+public enum AuthState: Hashable, Sendable {
+    case signedOut
+    /// Waiting for the user to approve `code` on the dashboard or iPhone.
+    case pairing(code: String, expiresAt: Date)
+    case signingIn
+    case signedIn(email: String?)
+    /// The session ended (refresh token expired or revoked); pair again.
+    case expired
+    case failed(String)
+}
+
 /// The watch app's state and behaviour. Views read its properties and call
 /// its intents; platform services are injected through `Dependencies` so the
 /// whole workflow is unit-testable without a device.
@@ -29,7 +41,13 @@ public final class AeroscopeModel {
         public var haptics: HapticsPlaying
         public var connectivity: ConnectivitySending?
         public var dataset: CityDataset
-        public var makeLiveBackend: (BackendSettings, BackendCredentials) -> (any AeroscopeBackend)?
+        public var makeLiveBackend: (BackendSettings, TokenStore) -> (any AeroscopeBackend)?
+        public var makePairingClient: (URL) -> PairingClient
+        public var makeCognito: (_ region: String, _ clientId: String) -> CognitoClient
+        /// Trip status polling while a live trip is active (keeps the watch in step with the dashboard).
+        public var livePollInterval: Duration
+        /// Polling for a trip started elsewhere while signed in and idle.
+        public var idlePollInterval: Duration
         public var clock: @Sendable () -> Date
         public var demoStepInterval: Duration
         /// Seed for the backend URL (from the build configuration), used until the iPhone sends one.
@@ -42,9 +60,12 @@ public final class AeroscopeModel {
         public init(
             store: FileStore, keychain: KeychainStore, location: LocationProviding, notifier: AlertNotifying,
             haptics: HapticsPlaying, connectivity: ConnectivitySending?, dataset: CityDataset,
-            makeLiveBackend: @escaping (BackendSettings, BackendCredentials) -> (any AeroscopeBackend)? = { settings, credentials in
-                LiveBackendClient(settings: settings, credentials: credentials)
+            makeLiveBackend: @escaping (BackendSettings, TokenStore) -> (any AeroscopeBackend)? = { settings, tokens in
+                LiveBackendClient(settings: settings, tokens: tokens)
             },
+            makePairingClient: @escaping (URL) -> PairingClient = { PairingClient(baseURL: $0) },
+            makeCognito: @escaping (String, String) -> CognitoClient = { CognitoClient(region: $0, clientId: $1) },
+            livePollInterval: Duration = .seconds(2), idlePollInterval: Duration = .seconds(5),
             clock: @escaping @Sendable () -> Date = { Date() }, demoStepInterval: Duration = .seconds(8),
             defaultBaseURL: String? = nil, deviceId: String, bundleId: String, apnsEnvironment: String = "sandbox",
             requestPushRegistration: @escaping () -> Void = {}
@@ -57,6 +78,10 @@ public final class AeroscopeModel {
             self.connectivity = connectivity
             self.dataset = dataset
             self.makeLiveBackend = makeLiveBackend
+            self.makePairingClient = makePairingClient
+            self.makeCognito = makeCognito
+            self.livePollInterval = livePollInterval
+            self.idlePollInterval = idlePollInterval
             self.clock = clock
             self.demoStepInterval = demoStepInterval
             self.defaultBaseURL = defaultBaseURL
@@ -79,6 +104,7 @@ public final class AeroscopeModel {
         static let demoScenario = "demoScenario"
         static let pushToken = "pushToken"
         static let pendingActions = "pendingActions"
+        static let clientConfig = "clientConfig"
     }
 
     static let maxAlerts = 40
@@ -103,7 +129,7 @@ public final class AeroscopeModel {
     public private(set) var routeState: RouteState = .idle
     public private(set) var preferences: AlertPreferences
     public private(set) var backendSettings: BackendSettings
-    public private(set) var hasApiKey: Bool
+    public private(set) var authState: AuthState
     public private(set) var locationAuthorization: LocationAuthorization
     public private(set) var notificationAuthorization: NotificationAuthorization = .notDetermined
     public private(set) var cityCache: CityCache?
@@ -125,6 +151,9 @@ public final class AeroscopeModel {
     @ObservationIgnored private var inFlight: Set<UUID> = []
     @ObservationIgnored private var demoTask: Task<Void, Never>?
     @ObservationIgnored private var started = false
+    @ObservationIgnored private let tokens: TokenStore
+    @ObservationIgnored private var pairingTask: Task<Void, Never>?
+    @ObservationIgnored private var clientConfig: ClientConfig?
 
     public init(dependencies deps: Dependencies) {
         self.deps = deps
@@ -134,8 +163,10 @@ public final class AeroscopeModel {
         let initialMode = storedTrip?.source ?? store.load(DataSourceMode.self, key: Keys.mode) ?? .live
         let initialPreferences = store.load(AlertPreferences.self, key: Keys.preferences) ?? .default
         let initialScenario = store.load(Scenario.self, key: Keys.demoScenario) ?? .demoDefault
-        let settings = store.load(BackendSettings.self, key: Keys.backendSettings)
-            ?? BackendSettings(baseURL: deps.defaultBaseURL, userId: UUID().uuidString, updatedAt: Date(timeIntervalSince1970: 0))
+        var settings = store.load(BackendSettings.self, key: Keys.backendSettings)
+            ?? BackendSettings(baseURL: deps.defaultBaseURL, updatedAt: Date(timeIntervalSince1970: 0))
+        // Nothing configured yet (e.g. no iPhone): use the URL baked into the build.
+        if !settings.isConfigured, let fallback = deps.defaultBaseURL, !fallback.isEmpty { settings.baseURL = fallback }
         let restored = store.load(ReadingSnapshot.self, key: Keys.snapshot(initialMode)).map(\.restored)
 
         mode = initialMode
@@ -147,12 +178,18 @@ public final class AeroscopeModel {
         cityCache = store.load(CityCache.self, key: Keys.cityCache)
         demoScenario = initialScenario
         pushToken = store.load(String.self, key: Keys.pushToken)
-        hasApiKey = deps.keychain.string(for: KeychainStore.apiKeyAccount) != nil
+        tokens = TokenStore(keychain: deps.keychain, clock: deps.clock)
+        let session = deps.keychain.loadTokens()
+        authState = session.map { .signedIn(email: $0.email) } ?? .signedOut
+        clientConfig = store.load(ClientConfig.self, key: Keys.clientConfig)
+        accountSub = session?.sub
+        accountEmail = session?.email
         locationAuthorization = deps.location.authorization
         snapshot = restored?.source == initialMode ? restored : nil
         sync = SyncQueue(store: store, key: Keys.pendingActions)
         demoBackend = DemoBackend(dataset: deps.dataset, scenario: initialScenario, preferences: initialPreferences, clock: deps.clock)
         rebuildLiveBackend()
+        installRefresher()
         store.save(settings, key: Keys.backendSettings)
     }
 
@@ -163,6 +200,7 @@ public final class AeroscopeModel {
     public var isBackendConfigured: Bool { backendSettings.isConfigured }
     public var now: Date { deps.clock() }
     public var lastSyncError: String? { sync.lastError?.userMessage }
+    public var isSignedIn: Bool { if case .signedIn = authState { true } else { false } }
 
     /// The dataset used for zone geometry, names and routing. AQI values in
     /// live mode never come from the bundled demo baselines.
@@ -203,7 +241,7 @@ public final class AeroscopeModel {
                 await demoBackend.adopt(trip: trip, alerts: alerts)
                 demoJourney = resumedJourney(for: trip)
                 if trip.phase == .active { startDemoTicker() }
-            } else if trip.phase == .active {
+            } else if trip.phase == .active && !trip.followsBackendPosition {
                 deps.location.startTripUpdates()
             }
         }
@@ -211,11 +249,28 @@ public final class AeroscopeModel {
         publishSummary()
     }
 
-    /// Foreground housekeeping: keeps the reading fresh and the queue moving.
+    /// Foreground loop. Signed in to the live backend it polls every couple of
+    /// seconds (trip status during a trip; a trip started elsewhere otherwise),
+    /// so dashboard moves and alerts reach the wrist almost at once. Watches
+    /// cannot hold WebSockets, so polling is the real-time path here.
     public func runForegroundLoop() async {
+        var lastHousekeeping = Date.distantPast
         while !Task.isCancelled {
-            await refreshIfDue()
-            try? await Task.sleep(for: .seconds(60))
+            if mode == .live && isSignedIn {
+                if trip?.isOngoing == true {
+                    await flushQueue()
+                    await pollTripStatus()
+                } else {
+                    await adoptActiveTrip()
+                }
+            }
+            if now.timeIntervalSince(lastHousekeeping) >= 60 {
+                await refreshIfDue()
+                lastHousekeeping = now
+            }
+            let interval: Duration = mode == .live && isSignedIn
+                ? (trip?.isOngoing == true ? deps.livePollInterval : deps.idlePollInterval) : .seconds(60)
+            try? await Task.sleep(for: interval)
         }
     }
 
@@ -333,6 +388,8 @@ public final class AeroscopeModel {
     private func handleFix(_ fix: LocationFix) {
         guard mode == .live else { return }
         lastFix = fix
+        // A simulated-position trip is driven by the dashboard; the real GPS fix must not override it.
+        if trip?.followsBackendPosition == true { return }
         Task { await process(fix) }
     }
 
@@ -348,7 +405,7 @@ public final class AeroscopeModel {
         locationAuthorization = authorization
         if authorization.isAuthorized && !wasAuthorized && mode == .live {
             deps.location.requestFix()
-            if trip?.phase == .active { deps.location.startTripUpdates() }
+            if trip?.phase == .active && trip?.followsBackendPosition != true { deps.location.startTripUpdates() }
         } else if !authorization.isAuthorized && mode == .live {
             issue = authorization == .notDetermined ? .locationNotDetermined : .locationDenied
         }
@@ -385,14 +442,22 @@ public final class AeroscopeModel {
 
     // MARK: Trip
 
-    public func startTrip(destinationZoneId: String?) async {
+    /// Starts a trip. In live mode `startZoneId` starts from that zone with a
+    /// SIMULATED position (for demos away from Delhi): the dashboard then walks
+    /// the character and the watch follows; GPS is not used.
+    public func startTrip(destinationZoneId: String?, startZoneId: String? = nil) async {
         guard trip?.isOngoing != true else { return }
         if notificationAuthorization == .notDetermined { await requestNotificationPermission() }
 
         let startedAt = now
-        let originFix: LocationFix? = mode == .demo
-            ? LocationFix(point: demoJourney?.current ?? demoOrigin, at: startedAt, accuracyMeters: 5, simulated: true)
-            : lastFix.flatMap { startedAt.timeIntervalSince($0.at) < 600 ? $0 : nil }
+        let startPoint = mode == .live ? startZoneId.flatMap { dataset.zone(id: $0)?.geo } : nil
+        let originFix: LocationFix? = if let startPoint {
+            LocationFix(point: startPoint, at: startedAt, accuracyMeters: 0, simulated: true)
+        } else if mode == .demo {
+            LocationFix(point: demoJourney?.current ?? demoOrigin, at: startedAt, accuracyMeters: 5, simulated: true)
+        } else {
+            lastFix.flatMap { startedAt.timeIntervalSince($0.at) < 600 ? $0 : nil }
+        }
         let originZoneId = originFix.flatMap { locate($0.point)?.zoneId }
         var planned: [String] = []
         if let origin = originZoneId, let destination = destinationZoneId {
@@ -400,7 +465,8 @@ public final class AeroscopeModel {
         }
         let newTrip = Trip.start(
             at: startedAt, source: mode, mode: preferences.travelMode, originZoneId: originZoneId,
-            destinationZoneId: destinationZoneId, destinationName: zoneName(destinationZoneId), plannedZoneIds: planned
+            destinationZoneId: destinationZoneId, destinationName: zoneName(destinationZoneId), plannedZoneIds: planned,
+            simulatedPosition: startPoint != nil
         )
         trip = newTrip
         routeState = .idle
@@ -410,7 +476,7 @@ public final class AeroscopeModel {
         if mode == .demo {
             demoJourney = DemoJourney(zoneIds: demoRoute(for: newTrip, from: originZoneId), dataset: deps.dataset)
             startDemoTicker()
-        } else {
+        } else if !newTrip.followsBackendPosition {
             deps.location.startTripUpdates()
         }
 
@@ -448,7 +514,7 @@ public final class AeroscopeModel {
         do { try current.resume(at: at) } catch { return }
         trip = current
         saveTrip()
-        if mode == .demo { startDemoTicker() } else { deps.location.startTripUpdates() }
+        if mode == .demo { startDemoTicker() } else if !current.followsBackendPosition { deps.location.startTripUpdates() }
         deps.haptics.play(.start)
         _ = await submit(.tripEvent(tripId: current.id, event: TripEventRequest(type: .resume, at: at)))
         publishSummary()
@@ -542,14 +608,84 @@ public final class AeroscopeModel {
     /// (e.g. a demo operator moving the avatar from the dashboard).
     public func pollTripStatus() async {
         guard mode == .live, let current = trip, current.isOngoing, let backend = liveBackend, sync.count == 0 else { return }
-        guard let status = try? await backend.tripStatus(tripId: current.id) else { return }
+        let status: TripStatusResponse
+        do {
+            status = try await backend.tripStatus(tripId: current.id)
+        } catch {
+            noteAuthFailure(BackendError.from(error))
+            return
+        }
         for alert in status.alerts.sorted(by: { $0.createdAt < $1.createdAt }) {
             receive(alert, present: alert.isOpen && now.timeIntervalSince(alert.createdAt) < 300)
         }
-        if status.lastEvaluationSource == .operator, let evaluation = status.lastEvaluation,
+        // A move made elsewhere (dashboard walk, operator): show where the character is now.
+        if let source = status.lastEvaluationSource, source.isRemote, let evaluation = status.lastEvaluation,
            let at = status.lastEvaluationAt, at > (trip?.lastSample?.at ?? .distantPast) {
             applyEvaluation(evaluation, fix: nil, fresh: false)
         }
+        // A route chosen on another device.
+        if !status.plannedZoneIds.isEmpty, var t = trip, t.id == status.tripId, status.plannedZoneIds != t.plannedZoneIds {
+            t.plannedZoneIds = status.plannedZoneIds
+            trip = t
+            saveTrip()
+        }
+        // Paused, resumed or ended on another device.
+        if status.phase != current.phase { followPhase(status.phase) }
+    }
+
+    /// Applies a lifecycle change made elsewhere without sending it back.
+    private func followPhase(_ phase: TripPhase) {
+        guard var current = trip, current.isOngoing else { return }
+        let at = now
+        switch phase {
+        case .paused:
+            guard (try? current.pause(at: at)) != nil else { return }
+            trip = current
+            stopDemoTicker()
+            deps.location.stopTripUpdates()
+        case .active:
+            guard (try? current.resume(at: at)) != nil else { return }
+            trip = current
+            if !current.followsBackendPosition { deps.location.startTripUpdates() }
+        case .ended:
+            guard (try? current.end(at: at)) != nil else { return }
+            recentTrips.insert(TripSummary(trip: current, endedAt: at), at: 0)
+            if recentTrips.count > Self.maxRecentTrips { recentTrips.removeLast(recentTrips.count - Self.maxRecentTrips) }
+            deps.store.save(recentTrips, key: Keys.recentTrips)
+            trip = nil
+            routeState = .idle
+            deps.location.stopTripUpdates()
+            notice = "Trip ended on the dashboard"
+        }
+        saveTrip()
+        deps.haptics.play(phase == .active ? .start : .stop)
+        publishSummary()
+    }
+
+    /// Picks up a trip started on the dashboard (or the iPhone).
+    public func adoptActiveTrip() async {
+        guard mode == .live, trip?.isOngoing != true, isSignedIn, let backend = liveBackend else { return }
+        let status: TripStatusResponse?
+        do {
+            status = try await backend.activeTrip()
+        } catch {
+            noteAuthFailure(BackendError.from(error))
+            return
+        }
+        // Ignore a trip this watch just ended whose end is still queued.
+        guard let status, status.phase != .ended, !recentTrips.contains(where: { $0.id == status.tripId }) else { return }
+        let adopted = Trip.adopting(status, destinationName: zoneName(status.destinationZoneId), now: now)
+        trip = adopted
+        routeState = .idle
+        saveTrip()
+        if let evaluation = status.lastEvaluation { applyEvaluation(evaluation, fix: nil, fresh: false) }
+        for alert in status.alerts.sorted(by: { $0.createdAt < $1.createdAt }) {
+            receive(alert, present: alert.isOpen && now.timeIntervalSince(alert.createdAt) < 120)
+        }
+        if adopted.phase == .active && !adopted.followsBackendPosition { deps.location.startTripUpdates() }
+        notice = "Trip started on the dashboard"
+        deps.haptics.play(.start)
+        publishSummary()
     }
 
     // MARK: Alerts
@@ -850,6 +986,7 @@ public final class AeroscopeModel {
             return
         }
         let outcome = await sync.flush(using: backend, now: deps.clock)
+        if outcome.dropped.values.contains(.unauthorized) || outcome.blockedBy == .unauthorized { noteAuthFailure(.unauthorized) }
         if let blocked = outcome.blockedBy, blocked.canRelayThroughPhone { relayPendingActionsToPhone() }
         if outcome.blockedBy == nil, !outcome.delivered.isEmpty, notice == Self.offlineNotice { notice = nil }
     }
@@ -873,9 +1010,116 @@ public final class AeroscopeModel {
     }
 
     private func rebuildLiveBackend() {
-        let credentials = deps.keychain.loadCredentials()
-        hasApiKey = credentials.apiKey != nil
-        liveBackend = deps.makeLiveBackend(backendSettings, credentials)
+        liveBackend = deps.makeLiveBackend(backendSettings, tokens)
+    }
+
+    // MARK: Sign-in (watch pairing)
+
+    /// Asks the backend for a pairing code, shows it, and waits for the user to
+    /// approve it on the dashboard (or the paired iPhone does so automatically).
+    /// Then signs in to Cognito with the pairing proof. No password on the watch.
+    public func beginPairing() {
+        guard let url = backendSettings.url else {
+            authState = .failed("Backend not configured")
+            return
+        }
+        pairingTask?.cancel()
+        authState = .signingIn
+        let client = deps.makePairingClient(url)
+        pairingTask = Task { [weak self] in
+            do {
+                let config = try await client.clientConfig()
+                let pairing = try await client.start()
+                guard let self, !Task.isCancelled else { return }
+                self.clientConfig = config
+                self.deps.store.save(config, key: Keys.clientConfig)
+                self.authState = .pairing(code: pairing.code, expiresAt: pairing.expiresAt)
+                // A signed-in iPhone approves the code without any typing.
+                self.deps.connectivity?.send(.pairingCode(pairing.code), delivery: .immediate)
+                while !Task.isCancelled {
+                    try await Task.sleep(for: .seconds(2))
+                    let status = try await client.status(pairing)
+                    switch status.status {
+                    case .pending:
+                        if self.now >= pairing.expiresAt { self.authState = .failed("Code expired. Get a new one."); return }
+                    case .approved:
+                        try await self.completeSignIn(pairing: pairing, status: status, config: config)
+                        return
+                    case .consumed, .expired:
+                        self.authState = .failed("Code expired. Get a new one.")
+                        return
+                    }
+                }
+            } catch is CancellationError {
+                return
+            } catch let error as AuthError {
+                self?.authState = .failed(error.userMessage)
+            } catch {
+                self?.authState = .failed(BackendError.from(error).userMessage)
+            }
+        }
+    }
+
+    public func cancelPairing() {
+        pairingTask?.cancel()
+        pairingTask = nil
+        if case .pairing = authState { authState = .signedOut }
+        if case .signingIn = authState { authState = .signedOut }
+    }
+
+    private func completeSignIn(pairing: PairingStart, status: PairingStatus, config: ClientConfig) async throws {
+        authState = .signingIn
+        let session: AuthTokens
+        if config.isDevServer, let dev = status.devToken {
+            session = .dev(dev, username: status.username ?? "dev", email: status.email, now: now)
+        } else {
+            guard let username = status.username else { throw AuthError.rejected("Pairing incomplete. Get a new code.") }
+            session = try await deps.makeCognito(config.region, config.cognito.watchClientId)
+                .signInWithPairing(username: username, answer: "\(pairing.pairingId).\(pairing.secret)", now: now)
+        }
+        await tokens.save(session)
+        installRefresher()
+        accountSub = session.sub
+        accountEmail = session.email
+        authState = .signedIn(email: session.email)
+        deps.haptics.play(.success)
+        rebuildLiveBackend()
+        await registerDeviceIfPossible()
+        await flushQueue()
+        if mode == .live { await refresh() }
+        await adoptActiveTrip()
+        publishSummary()
+    }
+
+    /// Refreshing uses the watch's own Cognito app client and refresh token.
+    private func installRefresher() {
+        guard let config = clientConfig, !config.isDevServer else { return }
+        let cognito = deps.makeCognito(config.region, config.cognito.watchClientId)
+        let clock = deps.clock
+        let store = tokens
+        Task { await store.setRefresher { current in try await cognito.refresh(current, now: clock()) } }
+    }
+
+    public func signOut() async {
+        pairingTask?.cancel()
+        if let session = await tokens.current, let config = clientConfig, !config.isDevServer {
+            await deps.makeCognito(config.region, config.cognito.watchClientId).revoke(session)
+        }
+        await tokens.save(nil)
+        accountSub = nil
+        accountEmail = nil
+        authState = .signedOut
+        rebuildLiveBackend()
+        publishSummary()
+    }
+
+    /// The session ended (refresh token expired or revoked): ask to pair again.
+    private func noteAuthFailure(_ error: BackendError) {
+        guard error == .unauthorized, isSignedIn else { return }
+        Task { [weak self] in
+            guard let self else { return }
+            if await self.tokens.current == nil { self.authState = .expired }
+        }
     }
 
     // MARK: Push
@@ -913,24 +1157,10 @@ public final class AeroscopeModel {
             await demoBackend.setPreferences(incoming)
         case .backendSettings(let incoming):
             guard incoming.updatedAt > backendSettings.updatedAt else { return }
-            // The user id changes only together with its key (`.credentials`).
-            backendSettings = BackendSettings(baseURL: incoming.baseURL, userId: backendSettings.userId, updatedAt: incoming.updatedAt)
+            backendSettings = BackendSettings(baseURL: incoming.baseURL, updatedAt: incoming.updatedAt)
             deps.store.save(backendSettings, key: Keys.backendSettings)
             cityCache = nil
             deps.store.remove(key: Keys.cityCache)
-            rebuildLiveBackend()
-            await registerDeviceIfPossible()
-            if mode == .live { await refresh() }
-        case .credentials(let transfer):
-            do {
-                try deps.keychain.set(transfer.apiKey, for: KeychainStore.apiKeyAccount)
-                try deps.keychain.set(transfer.userKey, for: KeychainStore.userKeyAccount)
-            } catch {
-                Self.log.error("Could not store credentials from iPhone: \(String(describing: error), privacy: .public)")
-                return
-            }
-            backendSettings.userId = transfer.userId
-            deps.store.save(backendSettings, key: Keys.backendSettings)
             rebuildLiveBackend()
             await registerDeviceIfPossible()
             if mode == .live { await refresh() }
@@ -945,11 +1175,14 @@ public final class AeroscopeModel {
             sync.remove(ids: Set(delivered + dropped))
         case .requestSummary:
             break
-        case .pendingActions, .watchSummary:
+        case .pendingActions, .watchSummary, .pairingCode:
             return
         }
         publishSummary()
     }
+
+    @ObservationIgnored private var accountSub: String?
+    @ObservationIgnored private var accountEmail: String?
 
     public var summary: WatchSummary {
         WatchSummary(
@@ -957,7 +1190,7 @@ public final class AeroscopeModel {
             recentAlerts: Array(alerts.prefix(10)), pendingActionCount: sync.count,
             locationAuthorization: locationAuthorization, notificationAuthorization: notificationAuthorization,
             pushRegistered: pushRegistered, lastSyncAt: sync.lastDeliveredAt, lastSyncError: lastSyncError,
-            demoScenario: demoScenario
+            demoScenario: demoScenario, accountSub: accountSub, accountEmail: accountEmail
         )
     }
 

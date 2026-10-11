@@ -39,7 +39,8 @@ export function LiveAvatar() {
 
   useFrame((_, delta) => {
     if (!tripActive || !motion.placed) return;
-    const dt = Math.min(delta, 0.1);
+    // Generous cap so slow frames (busy laptops, software GL) still walk at the right speed.
+    const dt = Math.min(delta, 0.25);
     step(dt, cameraBridge.azimuth(), phase === "active");
     const g = group.current;
     if (!g) return;
@@ -110,7 +111,7 @@ export function LiveAvatar() {
           <cylinderGeometry args={[0.07, 0.07, 3.2, 8]} />
           <meshBasicMaterial color={color} transparent opacity={0.7} toneMapped={false} />
         </mesh>
-        <Html position={[0, 9.4, 0]} center zIndexRange={[18, 0]} style={{ pointerEvents: "none" }}>
+        <Html position={[0, 12.5, 0]} center zIndexRange={[18, 0]} style={{ pointerEvents: "none" }}>
           <div className="aq-live-tag" style={{ borderColor: color }}>
             <span className="aq-live-tag__dot" style={{ background: watchLive ? "#2f9e44" : "#9aa5b1" }} title={watchLive ? "Watch active" : "Waiting for watch"} />
             <span className="font-semibold">You</span>

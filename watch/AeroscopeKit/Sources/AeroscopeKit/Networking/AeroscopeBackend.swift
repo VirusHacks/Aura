@@ -1,6 +1,6 @@
 import Foundation
 
-/// The AEROSCOPE watch API. `LiveBackendClient` talks HTTPS to API Gateway;
+/// The AEROSCOPE API. `LiveBackendClient` talks HTTPS to API Gateway (Cognito bearer tokens);
 /// `DemoBackend` runs the same contract in-process for deterministic demos.
 public protocol AeroscopeBackend: Sendable {
     var mode: DataSourceMode { get }
@@ -11,42 +11,21 @@ public protocol AeroscopeBackend: Sendable {
     func perform(_ operation: BackendOperation, idempotencyKey: UUID) async throws -> OperationResult
     func compareRoutes(_ request: RouteCompareRequest) async throws -> RouteComparison
     func tripStatus(tripId: String) async throws -> TripStatusResponse
+    /// The user's newest trip that hasn't ended (possibly started on the dashboard), or nil.
+    func activeTrip() async throws -> TripStatusResponse?
     func recentAlerts(limit: Int) async throws -> [PollutionAlert]
     func registerDevice(_ registration: DeviceRegistration) async throws
 }
 
-/// Secrets for the watch API, kept in the Keychain.
-public struct BackendCredentials: Hashable, Sendable {
-    /// API Gateway usage-plan key (`x-api-key`).
-    public var apiKey: String?
-    /// Per-installation secret (`x-aeroscope-user-key`). The backend pins its
-    /// hash to the user id on first use, so a user id alone cannot be impersonated.
-    public var userKey: String?
-
-    public init(apiKey: String?, userKey: String?) {
-        self.apiKey = apiKey
-        self.userKey = userKey
-    }
-
-    /// 256 random bits, hex encoded.
-    public static func generateUserKey() -> String {
-        var rng = SystemRandomNumberGenerator()
-        return (0..<4).map { _ in String(format: "%016llx", rng.next() as UInt64) }.joined()
-    }
-}
-
-/// Connection settings shared between the iPhone and the watch. Secrets are
-/// never stored here; they live in the Keychain.
+/// Connection settings shared between the iPhone and the watch. No secrets:
+/// each device keeps its own sign-in session in its Keychain.
 public struct BackendSettings: Codable, Hashable, Sendable {
-    /// API Gateway stage URL, e.g. https://abc123.execute-api.ap-south-1.amazonaws.com/prod
+    /// API base URL (the `ApiUrl` stack output), e.g. https://abc123.execute-api.us-east-1.amazonaws.com
     public var baseURL: String?
-    /// Stable per-installation user id until Cognito sign-in is added.
-    public var userId: String
     public var updatedAt: Date
 
-    public init(baseURL: String?, userId: String, updatedAt: Date) {
+    public init(baseURL: String?, updatedAt: Date) {
         self.baseURL = baseURL
-        self.userId = userId
         self.updatedAt = updatedAt
     }
 

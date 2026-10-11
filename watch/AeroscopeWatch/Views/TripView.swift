@@ -17,9 +17,9 @@ struct TripView: View {
         }
         .navigationTitle("Trip")
         .sheet(isPresented: $choosingDestination) {
-            StartTripView { destination in
+            StartTripView { destination, start in
                 choosingDestination = false
-                Task { await model.startTrip(destinationZoneId: destination) }
+                Task { await model.startTrip(destinationZoneId: destination, startZoneId: start) }
             }
         }
         .confirmationDialog("End this trip?", isPresented: $confirmingEnd, titleVisibility: .visible) {

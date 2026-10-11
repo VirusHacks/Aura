@@ -24,11 +24,15 @@ public struct WatchSummary: Codable, Hashable, Sendable {
     public var lastSyncAt: Date?
     public var lastSyncError: String?
     public var demoScenario: Scenario
+    /// Cognito `sub` the watch is signed in as; the iPhone relays the watch's
+    /// queued actions only when it is signed in to the same account.
+    public var accountSub: String?
+    public var accountEmail: String?
 
     public init(generatedAt: Date, mode: DataSourceMode, snapshot: ReadingSnapshot?, trip: Trip?, recentTrips: [TripSummary],
                 recentAlerts: [PollutionAlert], pendingActionCount: Int, locationAuthorization: LocationAuthorization,
                 notificationAuthorization: NotificationAuthorization, pushRegistered: Bool, lastSyncAt: Date?,
-                lastSyncError: String?, demoScenario: Scenario) {
+                lastSyncError: String?, demoScenario: Scenario, accountSub: String? = nil, accountEmail: String? = nil) {
         self.generatedAt = generatedAt
         self.mode = mode
         self.snapshot = snapshot
@@ -42,30 +46,19 @@ public struct WatchSummary: Codable, Hashable, Sendable {
         self.lastSyncAt = lastSyncAt
         self.lastSyncError = lastSyncError
         self.demoScenario = demoScenario
+        self.accountSub = accountSub
+        self.accountEmail = accountEmail
     }
 }
 
-/// The iPhone's identity and secrets, sent together so the watch never pairs
-/// one installation's user id with another's key.
-public struct CredentialTransfer: Codable, Hashable, Sendable {
-    public var apiKey: String?
-    public var userId: String
-    public var userKey: String
-
-    public init(apiKey: String?, userId: String, userKey: String) {
-        self.apiKey = apiKey
-        self.userId = userId
-        self.userKey = userKey
-    }
-}
 
 /// Every message exchanged between the iPhone companion and the watch.
 public enum ConnectivityMessage: Codable, Hashable, Sendable {
     case preferences(AlertPreferences)
     case backendSettings(BackendSettings)
-    /// Sent only over the encrypted WatchConnectivity channel (never as
-    /// application context); stored in the Keychain on arrival.
-    case credentials(CredentialTransfer)
+    /// Watch → iPhone: please approve this pairing code with your account.
+    /// Only the short-lived public code crosses WatchConnectivity — never a token.
+    case pairingCode(String)
     case demoCommand(DemoCommand)
     /// Watch → iPhone: actions the watch could not deliver itself.
     case pendingActions([PendingAction])

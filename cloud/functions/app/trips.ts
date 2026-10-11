@@ -441,9 +441,10 @@ async function getTrip(req: ApiRequest & { user: AuthUser }, ctx: AppContext) {
   return ok(await statusOf(ctx, trip));
 }
 
+/** `{ trip }` — the newest trip that hasn't ended, or null. Lets a watch adopt a trip started elsewhere. */
 async function getActiveTrip(req: ApiRequest & { user: AuthUser }, ctx: AppContext) {
   const trip = await need(ctx.trips, "trips").getActive(req.user.userId);
-  return trip ? ok(await statusOf(ctx, trip)) : ok({ error: "No active trip", code: "not-found" }, 404);
+  return ok({ trip: trip ? await statusOf(ctx, trip) : null });
 }
 
 export const tripRoutes: Route[] = [

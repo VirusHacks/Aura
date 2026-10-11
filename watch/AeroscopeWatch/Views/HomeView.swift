@@ -15,6 +15,9 @@ struct HomeView: View {
             TimelineView(.everyMinute) { context in
                 VStack(alignment: .leading, spacing: 10) {
                     header(now: context.date)
+                    if model.mode == .live && !model.isSignedIn {
+                        SignInCard()
+                    }
                     if let snapshot = model.snapshot {
                         ReadingCard(snapshot: snapshot, now: context.date,
                                     locationIsCurrent: model.snapshotLocationIsCurrent(at: context.date))
@@ -32,10 +35,10 @@ struct HomeView: View {
         }
         .navigationTitle("Air")
         .sheet(isPresented: $choosingDestination) {
-            StartTripView { destination in
+            StartTripView { destination, start in
                 choosingDestination = false
                 Task {
-                    await model.startTrip(destinationZoneId: destination)
+                    await model.startTrip(destinationZoneId: destination, startZoneId: start)
                     showTrip()
                 }
             }

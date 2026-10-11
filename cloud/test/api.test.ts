@@ -167,9 +167,9 @@ describe("trip lifecycle", () => {
 
   it("exposes the active trip so a watch can adopt a trip started on the web", async () => {
     const w = makeWorld();
-    expect((await w.call("GET", "/v1/trips/active")).status).toBe(404);
+    expect((await w.call("GET", "/v1/trips/active")).body).toEqual({ trip: null });
     await startAtChandniChowk(w);
-    const active = (await w.call("GET", "/v1/trips/active")).body as TripStatusResponse;
+    const active = ((await w.call("GET", "/v1/trips/active")).body as { trip: TripStatusResponse }).trip;
     expect(active).toMatchObject({ tripId: "trip-1", phase: "active", destinationZoneId: "z-rf", currentZoneId: "z-cc" });
   });
 
@@ -294,5 +294,19 @@ describe("public data", () => {
     const body = (await w.call("GET", "/v1/client-config", { user: null })).body as Record<string, unknown>;
     expect(JSON.stringify(body)).not.toMatch(/secret|password|apiKey/i);
     expect(body).toMatchObject({ cognito: { watchClientId: "watch" }, realtime: { namespace: "aeroscope" } });
+  });
+});
+
+describe("demo alert rules", () => {
+  it("with the cooldown off, alerts in every new poor zone but never twice in one", async () => {
+    const w = makeWorld();
+    await w.call("PUT", "/v1/preferences", { body: { threshold: "Poor", cooldownMinutes: 0, alertsEnabled: true, onlyDuringTrips: true, lookAhead: false } });
+    await startAtChandniChowk(w);
+    w.advance(5);
+    expect((await move(w, "trip-1", 2, -46)).body).toMatchObject({ alert: { zoneId: "z-ndls" } });
+    w.advance(5);
+    expect((await move(w, "trip-1", 2, -14)).body).toMatchObject({ alert: { zoneId: "z-cp" } });
+    w.advance(5);
+    expect((await move(w, "trip-1", 2, -46)).body).toMatchObject({ alert: null, evaluation: { suppression: "already-warned" } });
   });
 });

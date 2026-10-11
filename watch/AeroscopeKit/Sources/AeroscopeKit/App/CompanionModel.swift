@@ -33,14 +33,14 @@ public final class CompanionModel {
         public var store: FileStore
         public var keychain: KeychainStore
         public var connectivity: ConnectivitySending?
-        public var makeLiveBackend: (BackendSettings, BackendCredentials) -> (any AeroscopeBackend)?
+        public var makeLiveBackend: (BackendSettings, TokenStore) -> (any AeroscopeBackend)?
         public var clock: @Sendable () -> Date
         public var defaultBaseURL: String?
 
         public init(
             store: FileStore, keychain: KeychainStore, connectivity: ConnectivitySending?,
-            makeLiveBackend: @escaping (BackendSettings, BackendCredentials) -> (any AeroscopeBackend)? = { settings, credentials in
-                LiveBackendClient(settings: settings, credentials: credentials)
+            makeLiveBackend: @escaping (BackendSettings, TokenStore) -> (any AeroscopeBackend)? = { settings, tokens in
+                LiveBackendClient(settings: settings, tokens: tokens)
             },
             clock: @escaping @Sendable () -> Date = { Date() }, defaultBaseURL: String? = nil
         ) {
@@ -62,7 +62,8 @@ public final class CompanionModel {
     }
 
     public private(set) var backendSettings: BackendSettings
-    public private(set) var hasApiKey: Bool
+    /// The iPhone's own session (iPhone sign-in UI is not part of this build).
+    public var hasApiKey: Bool { false }
     public private(set) var connection: ConnectionCheck = .unknown
     public private(set) var preferences: AlertPreferences
     public private(set) var watchSummary: WatchSummary?
@@ -72,20 +73,21 @@ public final class CompanionModel {
 
     @ObservationIgnored private let deps: Dependencies
     @ObservationIgnored private var backend: (any AeroscopeBackend)?
+    @ObservationIgnored private var tokens: TokenStore?
 
     public init(dependencies deps: Dependencies) {
         self.deps = deps
         let store = deps.store
         let settings = store.load(BackendSettings.self, key: Keys.backendSettings)
-            ?? BackendSettings(baseURL: deps.defaultBaseURL, userId: UUID().uuidString, updatedAt: deps.clock())
+            ?? BackendSettings(baseURL: deps.defaultBaseURL, updatedAt: deps.clock())
         backendSettings = settings
         preferences = store.load(AlertPreferences.self, key: Keys.preferences) ?? .default
         watchSummary = store.load(WatchSummary.self, key: Keys.watchSummary)
         relayLog = store.load([RelayLogEntry].self, key: Keys.relayLog) ?? []
-        let credentials = deps.keychain.loadCredentials()
-        hasApiKey = credentials.apiKey != nil
         relay = SyncQueue(store: store, key: Keys.relayQueue)
-        backend = deps.makeLiveBackend(settings, credentials)
+        let tokenStore = TokenStore(keychain: deps.keychain, clock: deps.clock)
+        tokens = tokenStore
+        backend = deps.makeLiveBackend(settings, tokenStore)
         connection = settings.isConfigured ? .unknown : .notConfigured
         store.save(settings, key: Keys.backendSettings)
     }
@@ -97,10 +99,7 @@ public final class CompanionModel {
         deps.connectivity?.send(.backendSettings(backendSettings), delivery: .latestState)
         deps.connectivity?.send(.preferences(preferences), delivery: .latestState)
         deps.connectivity?.send(.requestSummary, delivery: .immediate)
-        if backendSettings.isConfigured {
-            shareCredentialsWithWatch()
-            await testConnection()
-        }
+        if backendSettings.isConfigured { await testConnection() }
         await flushRelay()
         await refreshActivity()
     }
@@ -123,19 +122,13 @@ public final class CompanionModel {
 
     /// Saves the connection, stores the key in the Keychain and shares both with the watch.
     @discardableResult
-    public func saveBackend(baseURL: String, apiKey: String?) async -> String? {
+    public func saveBackend(baseURL: String, apiKey: String? = nil) async -> String? {
         if let problem = Self.validate(baseURL: baseURL) { return problem }
         let trimmed = baseURL.trimmingCharacters(in: .whitespacesAndNewlines)
-        backendSettings = BackendSettings(baseURL: trimmed.isEmpty ? nil : trimmed, userId: backendSettings.userId, updatedAt: now)
+        backendSettings = BackendSettings(baseURL: trimmed.isEmpty ? nil : trimmed, updatedAt: now)
         deps.store.save(backendSettings, key: Keys.backendSettings)
-        if let apiKey {
-            do { try deps.keychain.set(apiKey, for: KeychainStore.apiKeyAccount) } catch { return "Could not save the API key to the Keychain." }
-        }
-        let credentials = deps.keychain.loadCredentials()
-        hasApiKey = credentials.apiKey != nil
-        backend = deps.makeLiveBackend(backendSettings, credentials)
+        if let tokens { backend = deps.makeLiveBackend(backendSettings, tokens) }
         deps.connectivity?.send(.backendSettings(backendSettings), delivery: .latestState)
-        shareCredentialsWithWatch()
         connection = backendSettings.isConfigured ? .unknown : .notConfigured
         if backendSettings.isConfigured {
             await testConnection()
@@ -144,16 +137,6 @@ public final class CompanionModel {
         return nil
     }
 
-    /// The watch acts as the same user as this iPhone, so relayed and direct
-    /// requests share one identity.
-    private func shareCredentialsWithWatch() {
-        let credentials = deps.keychain.loadCredentials()
-        guard let userKey = credentials.userKey else { return }
-        deps.connectivity?.send(
-            .credentials(CredentialTransfer(apiKey: credentials.apiKey, userId: backendSettings.userId, userKey: userKey)),
-            delivery: .immediate
-        )
-    }
 
     public func testConnection() async {
         guard let backend else {
@@ -218,7 +201,7 @@ public final class CompanionModel {
                 log(action, .waiting, detail: "Received from watch")
             }
             await flushRelay()
-        case .backendSettings, .credentials, .demoCommand, .actionResults, .requestSummary:
+        case .backendSettings, .pairingCode, .demoCommand, .actionResults, .requestSummary:
             return
         }
     }

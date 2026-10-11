@@ -7,6 +7,10 @@ struct SettingsView: View {
 
     var body: some View {
         List {
+            Section("Account") {
+                AccountSection()
+            }
+
             Section {
                 Picker("Source", selection: modeBinding) {
                     ForEach(DataSourceMode.allCases, id: \.self) { Text($0.label).tag($0) }
@@ -29,7 +33,7 @@ struct SettingsView: View {
                 Toggle("Warn ahead", isOn: preference(\.lookAhead))
                 Toggle("Only on trips", isOn: preference(\.onlyDuringTrips))
                 Picker("Quiet for", selection: preference(\.cooldownMinutes)) {
-                    ForEach([5, 10, 15, 30, 60], id: \.self) { Text("\($0) min").tag($0) }
+                    ForEach([0, 1, 5, 15, 30, 60], id: \.self) { Text($0 == 0 ? "Off" : "\($0) min").tag($0) }
                 }
                 Picker("Travel", selection: preference(\.travelMode)) {
                     ForEach(TravelMode.allCases, id: \.self) { Label($0.label, systemImage: $0.symbolName).tag($0) }
@@ -57,7 +61,6 @@ struct SettingsView: View {
 
             Section("Connection") {
                 MetricRow(title: "Backend", value: model.backendSettings.hostLabel ?? "Not connected")
-                MetricRow(title: "API key", value: model.hasApiKey ? "Set" : "None")
                 MetricRow(title: "Waiting to sync", value: "\(model.pendingActionCount)")
                 if let error = model.lastSyncError {
                     MetricRow(title: "Last error", value: error)

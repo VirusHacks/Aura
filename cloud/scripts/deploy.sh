@@ -11,6 +11,8 @@
 # Never deletes stacks, buckets or tables. Change sets that would remove or
 # replace a resource are flagged in the summary.
 set -euo pipefail
+# Print AWS CLI output straight to the terminal (no interactive pager).
+export AWS_PAGER=""
 
 cd "$(dirname "$0")/.."
 STAGE="${STAGE:-dev}"
@@ -87,6 +89,11 @@ for STACK in "${STACKS[@]}"; do
   TEMPLATE_URL="https://$BUCKET.s3.$REGION.amazonaws.com/$TEMPLATE_KEY"
 
   STATUS="$(stack_status "$STACK")"
+  if [[ "$STATUS" == "ROLLBACK_COMPLETE" ]]; then
+    echo "   $STACK failed to create and was rolled back (it holds no resources). Remove the empty stack, then re-run:"
+    echo "     aws cloudformation delete-stack --stack-name $STACK --region $REGION && aws cloudformation wait stack-delete-complete --stack-name $STACK --region $REGION"
+    continue
+  fi
   TYPE=UPDATE
   [[ "$STATUS" == "NONE" || "$STATUS" == "REVIEW_IN_PROGRESS" ]] && TYPE=CREATE
   if [[ "$TYPE" == "CREATE" && "$STACK" == *-App ]] && [[ "$(stack_status "Aeroscope-$STAGE-Data")" != *COMPLETE ]]; then
@@ -111,7 +118,7 @@ for STACK in "${STACKS[@]}"; do
   aws_ cloudformation describe-change-set --stack-name "$STACK" --change-set-name "$CS" \
     --query 'Changes[].ResourceChange.[Action,LogicalResourceId,ResourceType,Replacement]' --output table
   RISKY="$(aws_ cloudformation describe-change-set --stack-name "$STACK" --change-set-name "$CS" \
-    --query "length(Changes[?ResourceChange.Action=='Remove' || ResourceChange.Replacement=='True'])" --output text)"
+    --query "length(Changes[?ResourceChange.Action=='Remove' || ResourceChange.Replacement=='True'])" --output text | head -1)"
   if [[ "$RISKY" != "0" ]]; then
     echo "   !! $RISKY change(s) REMOVE or REPLACE a resource. Review before executing."
   else

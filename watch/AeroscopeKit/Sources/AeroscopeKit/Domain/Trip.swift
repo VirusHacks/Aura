@@ -71,6 +71,9 @@ public struct Trip: Codable, Hashable, Sendable, Identifiable {
     public var alertIds: [String]
     public var exposure: ExposureSummary
     public var rerouteCount: Int
+    /// True when the position is simulated (chosen start zone, or walked on the
+    /// web dashboard): the watch follows the backend instead of its own GPS.
+    public var simulatedPosition: Bool?
 
     private var accumulatedActiveSeconds: Double
     private var lastResumedAt: Date?
@@ -78,16 +81,30 @@ public struct Trip: Codable, Hashable, Sendable, Identifiable {
 
     public static func start(
         id: String = UUID().uuidString, at: Date, source: DataSourceMode, mode: TravelMode,
-        originZoneId: String?, destinationZoneId: String?, destinationName: String?, plannedZoneIds: [String]
+        originZoneId: String?, destinationZoneId: String?, destinationName: String?, plannedZoneIds: [String],
+        simulatedPosition: Bool = false
     ) -> Trip {
         Trip(
             id: id, source: source, mode: mode, startedAt: at, endedAt: nil, phase: .active,
             originZoneId: originZoneId, destinationZoneId: destinationZoneId, destinationName: destinationName,
             plannedZoneIds: plannedZoneIds, zonesVisited: [], lastSample: nil, sampleCount: 0, alertIds: [],
-            exposure: ExposureSummary(), rerouteCount: 0,
+            exposure: ExposureSummary(), rerouteCount: 0, simulatedPosition: simulatedPosition,
             accumulatedActiveSeconds: 0, lastResumedAt: at, lastAccrualAt: at
         )
     }
+
+    /// A trip started on another device (e.g. the web dashboard), as the backend reports it.
+    public static func adopting(_ status: TripStatusResponse, destinationName: String?, now: Date) -> Trip {
+        var trip = Trip.start(
+            id: status.tripId, at: status.startedAt ?? now, source: .live, mode: status.mode ?? .walk,
+            originZoneId: status.originZoneId, destinationZoneId: status.destinationZoneId, destinationName: destinationName,
+            plannedZoneIds: status.plannedZoneIds, simulatedPosition: status.isDemo ?? status.currentLocation?.simulated ?? true
+        )
+        if status.phase == .paused { try? trip.pause(at: now) }
+        return trip
+    }
+
+    public var followsBackendPosition: Bool { simulatedPosition == true }
 
     public var isOngoing: Bool { phase != .ended }
 

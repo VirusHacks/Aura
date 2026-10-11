@@ -255,13 +255,14 @@ export class AppStack extends Stack {
       authorizerName: "cognito",
       jwtAudience: [data.webClient.userPoolClientId, data.iosClient.userPoolClientId, data.watchClient.userPoolClientId],
     });
+    const routes: apigw.HttpRoute[] = [];
     const route = (method: Method, p: string, target: NodejsFunction, authenticated: boolean) =>
-      api.addRoutes({
+      routes.push(...api.addRoutes({
         path: p,
         methods: [apigw.HttpMethod[method]],
         integration: new HttpLambdaIntegration(`${target.node.id}${method}${p.replace(/[^A-Za-z]/g, "")}`, target),
         ...(authenticated ? { authorizer: jwt } : {}),
-      });
+      }));
 
     for (const p of ["/v1/health", "/v1/client-config", "/v1/city", "/v1/air-quality/zones", "/v1/air-quality/zones/{zoneId}", "/v1/air-quality/current", "/v1/scenario", "/v1/pairing/{pairingId}"]) {
       route("GET", p, publicFn, false);
@@ -280,6 +281,8 @@ export class AppStack extends Stack {
     route("PUT", "/v1/preferences", settingsFn, true);
     route("PUT", "/v1/devices/{deviceId}", settingsFn, true);
     route("POST", "/v1/pairing/claim", settingsFn, true);
+    // The stage's per-route throttles reference these routes, so they must exist first.
+    for (const r of routes) stage.node.addDependency(r);
 
     // ---------------------------------------------------------------- Observability
     const alarmTopic = new sns.Topic(this, "Alarms", { topicName: name("alarms"), enforceSSL: true });

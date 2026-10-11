@@ -9,7 +9,7 @@ import { useSelectedZoneId, useSimStore } from "@/store/simulation-store";
 import type { RouteAlternative } from "@/types/api";
 
 const DEFAULT_START = "z-cc"; // Chandni Chowk
-const DEFAULT_DESTINATION = "z-rf"; // Red Fort Precinct
+const DEFAULT_DESTINATION = "z-ig"; // India Gate: the walk crosses NDLS and Connaught Place
 
 function fmtDuration(s: number) {
   const m = Math.floor(s / 60);
@@ -228,15 +228,15 @@ function AlertRules() {
         <label className="space-y-0.5">
           <span className="text-[var(--muted)]">Cooldown</span>
           <select className="aq-input w-full" value={prefs.cooldownMinutes} onChange={(e) => void update({ cooldownMinutes: Number(e.target.value) })}>
-            {[1, 2, 5, 15, 30].map((m) => (
+            {[0, 1, 2, 5, 15, 30].map((m) => (
               <option key={m} value={m}>
-                {m} min{m === 1 ? " (demo)" : ""}
+                {m === 0 ? "Off · every zone" : `${m} min`}
               </option>
             ))}
           </select>
         </label>
       </div>
-      <p className="text-[10.5px] leading-snug text-[var(--faint)]">One alert per zone and category; a worse category always alerts. Short cooldowns suit live demos.</p>
+      <p className="text-[10.5px] leading-snug text-[var(--faint)]">One alert per zone and category; a worse category always alerts. “Off” alerts in every new zone — best for live demos.</p>
     </div>
   );
 }

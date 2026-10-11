@@ -9,6 +9,7 @@
 import { create } from "zustand";
 import { ApiError, LiveApi, type LiveConfig, type Session, auth, loadConfig, newId } from "@/lib/live/client";
 import { place, motion } from "@/lib/live/motion";
+import { useSimStore } from "@/store/simulation-store";
 import type {
   AlertPreferences,
   EventEnvelope,
@@ -80,6 +81,17 @@ interface LiveState {
 }
 
 let api: LiveApi | null = null;
+
+/**
+ * Saves the scenario on screen so the backend evaluates the same AQI the
+ * dashboard shows. AWS: through the data API's scenario table; dev server: its stand-in.
+ */
+export async function syncScenario(): Promise<void> {
+  const cfg = useLiveStore.getState().config;
+  const { preset, timeIndex } = useSimStore.getState();
+  const url = cfg?.mode === "dev" && cfg.apiUrl ? `${cfg.apiUrl}/dev/scenario` : "/api/scenarios";
+  await fetch(url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ preset, timeIndex }) }).catch(() => undefined);
+}
 let refreshing: Promise<Session | null> | null = null;
 const seen = new Set<string>();
 
@@ -223,7 +235,11 @@ export const useLiveStore = create<LiveState>()((set, get) => {
       motion.placed = false;
     },
 
-    setPanelOpen: (v) => set({ panelOpen: v }),
+    setPanelOpen: (v) => {
+      set({ panelOpen: v });
+      // Make room: the live panel and the bottom table share the left side.
+      if (v) useSimStore.getState().setBottomOpen(false);
+    },
     setFollow: (v) => set({ follow: v }),
     setClickToWalk: (v) => set({ clickToWalk: v }),
     clearError: () => set({ error: null }),
@@ -235,7 +251,7 @@ export const useLiveStore = create<LiveState>()((set, get) => {
       if (!api || get().authStatus !== "signed-in") return;
       try {
         const [trip, alerts, prefs] = await Promise.all([
-          api.get<TripStatusResponse>("/v1/trips/active").catch((e) => (e instanceof ApiError && e.status === 404 ? null : Promise.reject(e))),
+          api.get<{ trip: TripStatusResponse | null }>("/v1/trips/active").then((r) => r.trip),
           api.get<{ alerts: PollutionAlert[] }>("/v1/alerts?limit=20"),
           get().prefs ? Promise.resolve(get().prefs) : api.get<AlertPreferences>("/v1/preferences"),
         ]);
@@ -251,16 +267,18 @@ export const useLiveStore = create<LiveState>()((set, get) => {
 
     async startTripAt(zoneId, position, destinationZoneId) {
       if (!api) return;
-      const r = await run("Starting trip", () =>
-        api!.post<OperationResult>("/v1/trips", {
+      const r = await run("Starting trip", async () => {
+        // First make the backend use the scenario on screen, so the first alert matches it.
+        await syncScenario();
+        return api!.post<OperationResult>("/v1/trips", {
           tripId: newId(),
           startedAt: new Date().toISOString(),
           mode: "walk",
           source: "live",
           origin: { zoneId, world: { x: position[0], z: position[1] }, simulated: true },
           destinationZoneId,
-        }),
-      );
+        });
+      });
       if (r?.trip) {
         takeTrip(r.trip, { snap: true });
         handleResult({ ...r, trip: undefined });

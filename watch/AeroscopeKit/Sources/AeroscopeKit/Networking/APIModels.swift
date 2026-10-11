@@ -211,10 +211,23 @@ public struct OperationResult: Codable, Hashable, Sendable {
 }
 
 public enum EvaluationSource: String, Codable, Sendable, Hashable {
-    /// From a location the watch reported.
+    /// From a location the watch (or iPhone) reported.
     case device
-    /// From a simulated move injected on the backend (demo operator / dashboard).
+    /// From the web dashboard walking the character (simulated position).
+    case dashboard
+    /// From a simulated move injected by a demo operator.
     case `operator`
+
+    /// Moves made somewhere else that this device should follow.
+    public var isRemote: Bool { self != .device }
+}
+
+/// Where the trip's character currently is (zone level; no raw GPS).
+public struct TripLocation: Codable, Hashable, Sendable {
+    public var world: WorldPoint?
+    public var zoneId: String?
+    public var simulated: Bool
+    public var at: Date
 }
 
 public struct TripStatusResponse: Codable, Hashable, Sendable {
@@ -225,9 +238,21 @@ public struct TripStatusResponse: Codable, Hashable, Sendable {
     public var lastEvaluationSource: EvaluationSource?
     public var lastEvaluationAt: Date?
     public var alerts: [PollutionAlert]
+    // Set by the cloud backend; lets a device adopt a trip started elsewhere.
+    public var source: DataSourceMode?
+    public var mode: TravelMode?
+    public var startedAt: Date?
+    public var endedAt: Date?
+    public var originZoneId: String?
+    public var destinationZoneId: String?
+    public var currentLocation: TripLocation?
+    public var isDemo: Bool?
 
     public init(tripId: String, phase: TripPhase, plannedZoneIds: [String], lastEvaluation: Evaluation?,
-                lastEvaluationSource: EvaluationSource?, lastEvaluationAt: Date?, alerts: [PollutionAlert]) {
+                lastEvaluationSource: EvaluationSource?, lastEvaluationAt: Date?, alerts: [PollutionAlert],
+                source: DataSourceMode? = nil, mode: TravelMode? = nil, startedAt: Date? = nil, endedAt: Date? = nil,
+                originZoneId: String? = nil, destinationZoneId: String? = nil, currentLocation: TripLocation? = nil,
+                isDemo: Bool? = nil) {
         self.tripId = tripId
         self.phase = phase
         self.plannedZoneIds = plannedZoneIds
@@ -235,6 +260,14 @@ public struct TripStatusResponse: Codable, Hashable, Sendable {
         self.lastEvaluationSource = lastEvaluationSource
         self.lastEvaluationAt = lastEvaluationAt
         self.alerts = alerts
+        self.source = source
+        self.mode = mode
+        self.startedAt = startedAt
+        self.endedAt = endedAt
+        self.originZoneId = originZoneId
+        self.destinationZoneId = destinationZoneId
+        self.currentLocation = currentLocation
+        self.isDemo = isDemo
     }
 }
 

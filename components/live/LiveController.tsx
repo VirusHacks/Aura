@@ -4,7 +4,7 @@ import { useEffect, useRef } from "react";
 import { cameraBridge } from "@/lib/camera-bridge";
 import { isMovementKey, motion } from "@/lib/live/motion";
 import { type RealtimeConnection, connectAppSync, connectDevStream } from "@/lib/live/realtime";
-import { liveIsDriving, useLiveStore } from "@/store/live-store";
+import { liveIsDriving, syncScenario, useLiveStore } from "@/store/live-store";
 import { useSimStore } from "@/store/simulation-store";
 import { nearestZone } from "../world/SceneInteraction";
 
@@ -146,10 +146,7 @@ export function LiveController() {
       const key = `${preset}:${timeIndex}`;
       if (key === lastKey) return;
       lastKey = key;
-      const cfg = useLiveStore.getState().config;
-      // AWS: saved through the data API's scenario table, which the backend reads. Dev server: its stand-in.
-      const url = cfg?.mode === "dev" && cfg.apiUrl ? `${cfg.apiUrl}/dev/scenario` : "/api/scenarios";
-      void fetch(url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ preset, timeIndex }) }).catch(() => undefined);
+      void syncScenario();
     };
     push();
     const unsub = useSimStore.subscribe((s, prev) => {

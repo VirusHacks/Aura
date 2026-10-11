@@ -84,6 +84,8 @@ public actor DemoBackend: AeroscopeBackend {
         return comparison
     }
 
+    public func activeTrip() async throws -> TripStatusResponse? { nil }
+
     public func tripStatus(tripId: String) async throws -> TripStatusResponse {
         guard let trip = trips[tripId] else { throw BackendError.notFound("Unknown trip") }
         return TripStatusResponse(

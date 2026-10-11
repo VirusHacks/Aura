@@ -11,6 +11,11 @@ npm install
 npm run dev          # http://localhost:3000
 ```
 
+| Route | What it is |
+| --- | --- |
+| `/` | Landing page: what AEROSCOPE does, the watch journey, the architecture |
+| `/simulation` | The full-screen 3D simulation (the route is defined once, in `lib/routes.ts`) |
+
 | Script | What it does |
 | --- | --- |
 | `npm run dev` | Dev server (Turbopack) |
@@ -46,7 +51,7 @@ No environment variables are needed. Without them the app serves the bundled dem
 ## Architecture
 
 ```text
-app/                      page (server) + API routes
+app/                      landing page (/), simulation page (/simulation), API routes
   api/air-quality/zones   provider-backed zone dataset (static when demo)
   api/scenarios           proxy to AWS scenario store (501 until configured)
 components/
@@ -55,12 +60,15 @@ components/
                           metro, pollution layers, wind, labels, camera, interaction
   dashboard/              HUD: navigation, search, KPIs, panels, tables, timeline
   ui/                     small primitives (popover, AQI gauge/badge/scale)
+  landing/                landing page sections, a lightweight R3F city diorama and
+                          a scroll-driven replay of the watch demo journey (Motion)
 data/                     zones, landmarks, regions, sources
 lib/                      aqi, simulation engine, city layout + generator, paths,
                           shaders/uniforms, provider abstraction, schema validation
 store/simulation-store.ts Zustand: dataset, scenario, derived readings, selection,
                           layers (persisted), camera requests
 infra/                    AWS SAM stack (API Gateway + Lambda + DynamoDB)
+infra/web/                Lambda + CloudFront hosting for the Next.js app
 ```
 
 Readings, KPIs, table rows, labels, chart and heatmap uniforms are all derived from one `readings` array in the store. Per-frame animation (vehicles, trains, plumes, uniforms) lives in `useFrame`/shaders, never in React state. Repeated geometry is instanced.
@@ -95,6 +103,21 @@ AEROSCOPE_AQ_API_KEY=<key value>     # server-only; never NEXT_PUBLIC_
 ```
 
 With the URL set, `/api/air-quality/zones` runs per request, validates the payload (`lib/zone-schema.ts`) and falls back to the bundled demo data with a reason if the remote call fails. Seeded data stays `provenance: "demo"`; set the stack's `BaselineProvenance=verified` only when the table is populated from a verified monitoring source.
+
+### Hosting the web app (`infra/web/`)
+
+The Next.js standalone server runs on Lambda (arm64, Node 22) through the [Lambda Web Adapter](https://github.com/awslabs/aws-lambda-web-adapter) with response streaming on a function URL, fronted by CloudFront (`/_next/static/*` cached, everything else passed through). No Docker needed.
+
+```bash
+# Set the data API URL at build time: without it the zones route is prerendered from the demo dataset.
+AEROSCOPE_AQ_API_URL=<ApiUrl> ./infra/web/build.sh      # -> infra/web/.build/web.zip
+sam deploy -t infra/web/template.yaml --stack-name aeroscope-web --region <region> \
+  --resolve-s3 --capabilities CAPABILITY_IAM \
+  --parameter-overrides AqApiUrl=<ApiUrl> \
+    AqApiKey="$(aws apigateway get-api-key --api-key <ApiKeyId> --include-value --query value --output text)"
+```
+
+The `Url` output is the CloudFront address. Omit both parameters (and the build-time variable) to serve the bundled demo dataset. The function URL is public (`AuthType: NONE`) because CloudFront origin access control for Lambda cannot sign `POST` bodies from browsers.
 
 ## Limitations
 

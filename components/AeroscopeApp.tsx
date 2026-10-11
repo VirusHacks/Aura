@@ -15,6 +15,9 @@ import { SceneLabels } from "./dashboard/SceneLabels";
 import { SelectedZonePanel } from "./dashboard/SelectedZonePanel";
 import { TimelineControls } from "./dashboard/TimelineControls";
 import { TopNavigation } from "./dashboard/TopNavigation";
+import { LiveController } from "./live/LiveController";
+import { AlertToast, LivePanel } from "./live/LivePanel";
+import { useLiveStore } from "@/store/live-store";
 
 // The WebGL scene is client-only and code-split away from the dashboard.
 const CityCanvas = dynamic(() => import("./world/CityCanvas"), { ssr: false });
@@ -58,8 +61,19 @@ function useGlobalEffects() {
     if (window.matchMedia("(max-width: 767px)").matches) useSimStore.getState().setBottomOpen(false);
   }, []);
 
+  // Lock page scroll only while the simulation is the visible route. Next.js keeps
+  // hidden routes mounted (Activity), so a CSS :has() check would outlive it.
+  useEffect(() => {
+    document.documentElement.classList.add("aq-lock");
+    return () => document.documentElement.classList.remove("aq-lock");
+  }, []);
+
   useEffect(() => {
     document.documentElement.dataset.lighting = resolved;
+    // Hand pages outside the simulation the default day palette back.
+    return () => {
+      document.documentElement.dataset.lighting = "day";
+    };
   }, [resolved]);
 
   useEffect(() => {
@@ -80,9 +94,10 @@ export default function AeroscopeApp() {
   useDataset();
   const lighting = useGlobalEffects();
   const hasSelection = useSimStore((s) => s.selection !== null);
+  const livePanelOpen = useLiveStore((s) => s.panelOpen);
 
   return (
-    <main className="fixed inset-0 overflow-hidden">
+    <main className="aq-app fixed inset-0 overflow-hidden">
       <div className="aq-sky" aria-hidden>
         <div className="aq-sky__day" style={{ opacity: lighting === "day" ? 1 : 0 }} />
         <div className="aq-sky__sunset" style={{ opacity: lighting === "sunset" ? 1 : 0 }} />
@@ -106,9 +121,13 @@ export default function AeroscopeApp() {
           <KpiCards />
         </div>
 
-        <div className="absolute left-3 top-[188px] hidden lg:block">
-          <QuickNav />
-        </div>
+        {!livePanelOpen && (
+          <div className="absolute left-3 top-[188px] hidden lg:block">
+            <QuickNav />
+          </div>
+        )}
+        <LivePanel />
+        <AlertToast />
 
         {/* Right detail panel (desktop) */}
         <div className="absolute bottom-[112px] right-3 top-[76px] hidden w-[352px] flex-col justify-start md:flex">
@@ -141,6 +160,7 @@ export default function AeroscopeApp() {
       </div>
 
       <LoadingScreen />
+      <LiveController />
     </main>
   );
 }

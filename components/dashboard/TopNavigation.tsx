@@ -1,11 +1,13 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { Bell, Clock3, HelpCircle, Map, Menu, Moon, Search, Sun, Sunrise, Sunset, X } from "lucide-react";
 import { CITY_REGIONS } from "@/data/city-regions";
 import { getAqiBand } from "@/lib/aqi";
 import { resolveLighting } from "@/lib/lighting";
 import { TIME_STEPS } from "@/lib/simulation-engine";
+import { ROUTES } from "@/lib/routes";
 import { useSimStore } from "@/store/simulation-store";
 import type { LightingMode } from "@/types/scene";
 import { AqiValue } from "../ui/Aqi";
@@ -14,6 +16,7 @@ import { flyToRegion, selectZone } from "./actions";
 import { EnvironmentMenu, EnvironmentPanel } from "./EnvironmentMenu";
 import { LayerList, LayerMenu } from "./LayerMenu";
 import { SearchBox } from "./SearchBox";
+import { LiveButton } from "../live/LivePanel";
 
 export function Logo() {
   return (
@@ -298,7 +301,9 @@ export function TopNavigation() {
   const [mobileSearch, setMobileSearch] = useState(false);
   return (
     <header className="aq-panel pointer-events-auto absolute inset-x-3 top-3 z-40 flex h-[52px] items-center gap-1.5 px-2.5 sm:gap-2">
-      <Logo />
+      <Link href={ROUTES.home} aria-label="AEROSCOPE home" className="rounded-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]">
+        <Logo />
+      </Link>
       <div className="mx-1 hidden h-6 w-px bg-[var(--line)] md:block" />
       <div className="hidden w-[min(300px,26vw)] md:block">
         <SearchBox />
@@ -307,6 +312,7 @@ export function TopNavigation() {
         <RegionMenu />
       </div>
       <div className="flex-1" />
+      <LiveButton />
       <div className="hidden items-center gap-1 md:flex">
         <LayerMenu />
         <EnvironmentMenu />

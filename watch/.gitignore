@@ -1,0 +1,18 @@
+# Xcode
+xcuserdata/
+*.xcuserstate
+DerivedData/
+build/
+
+# Swift Package Manager
+AeroscopeKit/.build/
+AeroscopeKit/.swiftpm/
+*.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved
+
+# Personal signing / backend overrides
+Config/Local.xcconfig
+
+# Backend
+backend/node_modules/
+backend/.aws-sam/
+backend/samconfig.toml

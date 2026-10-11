@@ -138,6 +138,13 @@ The 3D city is useful on its own, but the web app and Apple Watch need a shared 
 
 AWS helps us move from a local demo to a system that can support multiple users and devices. Instead of every client calculating and storing its own state, the backend can evaluate trips centrally and share the result with the web dashboard, iPhone and watch.
 
+The AWS work is split into two layers:
+
+1. The base data API in [`infra/README.md`](infra/README.md) serves shared zones and scenario snapshots.
+2. The live backend in [`cloud/README.md`](cloud/README.md) adds identity, trips, alerts, routes, notifications and realtime updates.
+
+For a file-by-file explanation of how these layers were connected, see [`docs/aws-integration.md`](docs/aws-integration.md).
+
 ## 6. Architecture
 
 The main flow is:

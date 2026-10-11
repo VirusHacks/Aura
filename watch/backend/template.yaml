@@ -1,0 +1,228 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  AEROSCOPE watch API: trips, location evaluation, pollution alerts, cleaner-route
+  comparison and APNs push for the Apple Watch app. Deployed alongside (not
+  inside) the existing AEROSCOPE data stack in /infra, whose tables it reads.
+
+Parameters:
+  Stage:
+    Type: String
+    Default: prod
+  ZonesTableName:
+    Type: String
+    Default: ""
+    Description: >
+      `ZoneBaselinesTableName` output of the existing /infra stack. Empty serves
+      the bundled demo baselines.
+  ScenarioSnapshotsTableName:
+    Type: String
+    Default: ""
+    Description: >
+      `ScenarioSnapshotsTableName` output of the /infra stack. When set, watch
+      readings follow the scenario last saved from the 3D dashboard.
+  BaselineProvenance:
+    Type: String
+    Default: demo
+    AllowedValues: [demo, verified]
+  ApnsPlatformApplicationArnSandbox:
+    Type: String
+    Default: ""
+    AllowedPattern: "^$|^arn:aws[a-z-]*:sns:[a-z0-9-]+:[0-9]{12}:app/APNS_SANDBOX/[A-Za-z0-9_.-]+$"
+    Description: SNS platform application (APNS_SANDBOX) for the watch app's bundle id. Empty disables development pushes.
+  ApnsPlatformApplicationArnProduction:
+    Type: String
+    Default: ""
+    AllowedPattern: "^$|^arn:aws[a-z-]*:sns:[a-z0-9-]+:[0-9]{12}:app/APNS/[A-Za-z0-9_.-]+$"
+    Description: SNS platform application (APNS) for the watch app's bundle id. Empty disables production pushes.
+  OperatorKey:
+    Type: String
+    Default: ""
+    NoEcho: true
+    Description: >
+      Secret for the demo operator routes (POST /v1/trips/{id}/simulate, PUT /v1/scenario),
+      sent as x-aeroscope-operator-key. Empty disables those routes.
+  AppSyncEventsHttpDomain:
+    Type: String
+    Default: ""
+    Description: HTTP domain of an AppSync Events API (e.g. abc.appsync-api.ap-south-1.amazonaws.com). Empty disables dashboard events.
+  AppSyncEventsApiKey:
+    Type: String
+    Default: ""
+    NoEcho: true
+  AppSyncEventsNamespace:
+    Type: String
+    Default: aeroscope
+  AllowedOrigin:
+    Type: String
+    Default: "https://example.com"
+
+Conditions:
+  HasZonesTable: !Not [!Equals [!Ref ZonesTableName, ""]]
+  HasSnapshotsTable: !Not [!Equals [!Ref ScenarioSnapshotsTableName, ""]]
+  HasSandboxPush: !Not [!Equals [!Ref ApnsPlatformApplicationArnSandbox, ""]]
+  HasProductionPush: !Not [!Equals [!Ref ApnsPlatformApplicationArnProduction, ""]]
+  HasPush: !Or [!Condition HasSandboxPush, !Condition HasProductionPush]
+
+Globals:
+  Function:
+    Runtime: nodejs22.x
+    Architectures: [arm64]
+    MemorySize: 256
+    Timeout: 8
+    Tracing: Active
+
+Resources:
+  WatchApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      StageName: !Ref Stage
+      TracingEnabled: true
+      Auth:
+        ApiKeyRequired: true
+        UsagePlan:
+          CreateUsagePlan: PER_API
+          Throttle:
+            BurstLimit: 40
+            RateLimit: 20
+          Quota:
+            Limit: 200000
+            Period: MONTH
+      MethodSettings:
+        - ResourcePath: "/*"
+          HttpMethod: "*"
+          MetricsEnabled: true
+
+  WatchStateTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: pk
+          AttributeType: S
+        - AttributeName: sk
+          AttributeType: S
+      KeySchema:
+        - AttributeName: pk
+          KeyType: HASH
+        - AttributeName: sk
+          KeyType: RANGE
+      TimeToLiveSpecification:
+        AttributeName: expiresAt
+        Enabled: true
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+      SSESpecification:
+        SSEEnabled: true
+
+  WatchApiFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/
+      Handler: lambda.handler
+      Description: AEROSCOPE watch API (trips, alerts, routes, devices)
+      Environment:
+        Variables:
+          WATCH_TABLE: !Ref WatchStateTable
+          ZONES_TABLE: !Ref ZonesTableName
+          SCENARIOS_TABLE: !Ref ScenarioSnapshotsTableName
+          BASELINE_PROVENANCE: !Ref BaselineProvenance
+          APNS_PLATFORM_ARN_SANDBOX: !Ref ApnsPlatformApplicationArnSandbox
+          APNS_PLATFORM_ARN_PRODUCTION: !Ref ApnsPlatformApplicationArnProduction
+          APPSYNC_EVENTS_HTTP_DOMAIN: !Ref AppSyncEventsHttpDomain
+          APPSYNC_EVENTS_API_KEY: !Ref AppSyncEventsApiKey
+          APPSYNC_EVENTS_NAMESPACE: !Ref AppSyncEventsNamespace
+          ALLOWED_ORIGIN: !Ref AllowedOrigin
+          OPERATOR_KEY: !Ref OperatorKey
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref WatchStateTable
+        - !If
+          - HasZonesTable
+          - DynamoDBReadPolicy:
+              TableName: !Ref ZonesTableName
+          - !Ref AWS::NoValue
+        - !If
+          - HasSnapshotsTable
+          - DynamoDBReadPolicy:
+              TableName: !Ref ScenarioSnapshotsTableName
+          - !Ref AWS::NoValue
+        # Push permissions exist only when a platform application is configured, and
+        # cover only that application and the device endpoints created under it
+        # (arn:…:app/APNS/<name> → arn:…:endpoint/APNS/<name>/<id>).
+        - !If
+          - HasPush
+          - Statement:
+              - Sid: CreateWatchEndpoints
+                Effect: Allow
+                Action: sns:CreatePlatformEndpoint
+                Resource:
+                  - !If [HasSandboxPush, !Ref ApnsPlatformApplicationArnSandbox, !Ref AWS::NoValue]
+                  - !If [HasProductionPush, !Ref ApnsPlatformApplicationArnProduction, !Ref AWS::NoValue]
+              - Sid: PushToWatchEndpoints
+                Effect: Allow
+                Action:
+                  - sns:Publish
+                  - sns:SetEndpointAttributes
+                Resource:
+                  - !If
+                    - HasSandboxPush
+                    - !Join ["", [!Select [0, !Split [":app/", !Ref ApnsPlatformApplicationArnSandbox]], ":endpoint/", !Select [1, !Split [":app/", !Ref ApnsPlatformApplicationArnSandbox]], "/*"]]
+                    - !Ref AWS::NoValue
+                  - !If
+                    - HasProductionPush
+                    - !Join ["", [!Select [0, !Split [":app/", !Ref ApnsPlatformApplicationArnProduction]], ":endpoint/", !Select [1, !Split [":app/", !Ref ApnsPlatformApplicationArnProduction]], "/*"]]
+                    - !Ref AWS::NoValue
+          - !Ref AWS::NoValue
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            RestApiId: !Ref WatchApi
+            Path: /v1/{proxy+}
+            Method: ANY
+
+  WatchApiLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${WatchApiFunction}"
+      RetentionInDays: 14
+
+  WatchApiErrorsAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmDescription: AEROSCOPE watch API Lambda errors
+      Namespace: AWS/Lambda
+      MetricName: Errors
+      Dimensions:
+        - Name: FunctionName
+          Value: !Ref WatchApiFunction
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+
+  PushFailuresAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmDescription: APNs pushes through SNS are failing
+      Namespace: Aeroscope/Watch
+      MetricName: PushFailures
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 5
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+
+Outputs:
+  WatchApiUrl:
+    Description: Enter this in the iPhone app (Status → Connect backend).
+    Value: !Sub "https://${WatchApi}.execute-api.${AWS::Region}.amazonaws.com/${Stage}"
+  WatchApiKeyId:
+    Description: Fetch the key value with `aws apigateway get-api-key --api-key <id> --include-value`.
+    Value: !Ref WatchApiApiKey
+  WatchStateTableName:
+    Value: !Ref WatchStateTable

@@ -1,0 +1,39 @@
+{
+  "provenance": "demo",
+  "sourceLabel": "Bundled deterministic demo dataset (illustrative, not measured)",
+  "baselineTime": "2026-11-14T15:00:00+05:30",
+  "zones": [
+    { "id": "z-cp", "name": "Connaught Place", "region": "central", "position": [2, -14], "radius": 18, "baseAqi": 268, "dominant": "PM2.5", "trafficShare": 0.55, "baseTemperature": 22, "sources": ["traffic", "commercial"], "description": "Circular commercial hub with heavy outer-circle traffic and diesel generator use.", "geo": { "lat": 28.6315, "lon": 77.2167 } },
+    { "id": "z-ig", "name": "India Gate & Kartavya Path", "region": "central", "position": [8, 8], "radius": 18, "baseAqi": 214, "dominant": "PM2.5", "trafficShare": 0.45, "baseTemperature": 22, "sources": ["traffic"], "description": "Open lawns and wide avenues; ventilated but ringed by arterial traffic.", "geo": { "lat": 28.6129, "lon": 77.2295 } },
+    { "id": "z-ndls", "name": "New Delhi Railway Station", "region": "central", "position": [2, -46], "radius": 14, "baseAqi": 302, "dominant": "PM2.5", "trafficShare": 0.5, "baseTemperature": 23, "sources": ["traffic", "commercial"], "description": "Rail yard, taxi and bus stands with persistent idling and freight movement.", "geo": { "lat": 28.643, "lon": 77.2194 } },
+    { "id": "z-cc", "name": "Chandni Chowk", "region": "old", "position": [2, -72], "radius": 15, "baseAqi": 338, "dominant": "PM2.5", "trafficShare": 0.4, "baseTemperature": 23, "sources": ["commercial", "traffic", "waste-burning"], "description": "Dense wholesale bazaar: generators, street cooking and congested lanes.", "geo": { "lat": 28.6506, "lon": 77.2303 } },
+    { "id": "z-rf", "name": "Red Fort Precinct", "region": "old", "position": [45, -71], "radius": 13, "baseAqi": 296, "dominant": "PM2.5", "trafficShare": 0.35, "baseTemperature": 22, "sources": ["traffic", "commercial"], "description": "Heritage precinct between Netaji Subhash Marg and the Ring Road.", "geo": { "lat": 28.6562, "lon": 77.241 } },
+    { "id": "z-kg", "name": "Kashmere Gate", "region": "old", "position": [-30, -74], "radius": 15, "baseAqi": 318, "dominant": "PM2.5", "trafficShare": 0.5, "baseTemperature": 22, "sources": ["traffic"], "description": "Interstate bus terminal and interchange with heavy diesel and CNG bus flows.", "geo": { "lat": 28.6675, "lon": 77.2283 } },
+    { "id": "z-yb", "name": "Yamuna Riverfront", "region": "east", "position": [72, -10], "radius": 16, "baseAqi": 188, "dominant": "PM10", "trafficShare": 0.2, "baseTemperature": 21, "sources": ["waste-burning", "traffic"], "description": "Open floodplain corridor; better ventilation but exposed to riverbed dust.", "geo": { "lat": 28.628, "lon": 77.256 } },
+    { "id": "z-ln", "name": "Laxmi Nagar", "region": "east", "position": [100, -40], "radius": 18, "baseAqi": 352, "dominant": "PM2.5", "trafficShare": 0.45, "baseTemperature": 22, "sources": ["traffic", "commercial", "construction"], "description": "High-density mixed use along Vikas Marg with metro extension works.", "geo": { "lat": 28.6304, "lon": 77.2773 } },
+    { "id": "z-an", "name": "Anand Vihar", "region": "east", "position": [110, 18], "radius": 16, "baseAqi": 412, "dominant": "PM2.5", "trafficShare": 0.5, "baseTemperature": 22, "sources": ["traffic", "industrial", "construction"], "description": "Bus terminal, rail terminus and industrial border edge — a chronic hotspot.", "geo": { "lat": 28.6469, "lon": 77.316 } },
+    { "id": "z-mv", "name": "Mayur Vihar", "region": "east", "position": [104, 64], "radius": 18, "baseAqi": 286, "dominant": "PM2.5", "trafficShare": 0.35, "baseTemperature": 21, "sources": ["traffic", "waste-burning"], "description": "Residential group housing downwind of the Ghazipur landfill.", "geo": { "lat": 28.6046, "lon": 77.294 } },
+    { "id": "z-lg", "name": "Lodhi Garden", "region": "south", "position": [18, 26], "radius": 12, "baseAqi": 156, "dominant": "PM2.5", "trafficShare": 0.25, "baseTemperature": 20, "sources": ["traffic"], "description": "Large tree-covered park; the cleanest pocket in the central city.", "geo": { "lat": 28.5931, "lon": 77.2197 } },
+    { "id": "z-hk", "name": "Hauz Khas & Green Park", "region": "south", "position": [-8, 58], "radius": 15, "baseAqi": 226, "dominant": "PM2.5", "trafficShare": 0.4, "baseTemperature": 21, "sources": ["traffic", "commercial", "construction"], "description": "Residential colonies and markets with active redevelopment sites.", "geo": { "lat": 28.5494, "lon": 77.2001 } },
+    { "id": "z-qm", "name": "Qutub Minar & Mehrauli", "region": "south", "position": [-14, 86], "radius": 14, "baseAqi": 198, "dominant": "PM10", "trafficShare": 0.3, "baseTemperature": 21, "sources": ["traffic", "construction"], "description": "Heritage zone with ridge greenery; road widening adds coarse dust.", "geo": { "lat": 28.5245, "lon": 77.1855 } },
+    { "id": "z-np", "name": "Nehru Place", "region": "south", "position": [45, 54], "radius": 13, "baseAqi": 262, "dominant": "PM2.5", "trafficShare": 0.5, "baseTemperature": 22, "sources": ["commercial", "traffic"], "description": "Office towers and IT market beside the Outer Ring Road.", "geo": { "lat": 28.5491, "lon": 77.2513 } },
+    { "id": "z-mp", "name": "Mayapuri Industrial Area", "region": "industrial", "position": [-90, -24], "radius": 22, "baseAqi": 384, "dominant": "PM2.5", "trafficShare": 0.25, "baseTemperature": 23, "sources": ["industrial", "traffic", "waste-burning"], "description": "Metal recycling, furnaces and freight depots with open burning.", "geo": { "lat": 28.6377, "lon": 77.1295 } },
+    { "id": "z-ow", "name": "Outer Ring Works", "region": "industrial", "position": [-65, -78], "radius": 15, "baseAqi": 344, "dominant": "PM10", "trafficShare": 0.3, "baseTemperature": 22, "sources": ["construction", "traffic"], "description": "Flyover and depot construction with haul-road dust.", "geo": { "lat": 28.707, "lon": 77.175 } },
+    { "id": "z-nh", "name": "NH-48 Corridor", "region": "industrial", "position": [-98, 72], "radius": 20, "baseAqi": 336, "dominant": "PM2.5", "trafficShare": 0.6, "baseTemperature": 22, "sources": ["traffic", "construction"], "description": "Expressway freight corridor and toll plaza queues.", "geo": { "lat": 28.543, "lon": 77.125 } }
+  ],
+  "links": [
+    ["z-lg", "z-ig"], ["z-lg", "z-hk"], ["z-lg", "z-np"],
+    ["z-ig", "z-cp"], ["z-ig", "z-yb"],
+    ["z-cp", "z-ndls"], ["z-cp", "z-mp"],
+    ["z-ndls", "z-cc"], ["z-ndls", "z-kg"],
+    ["z-cc", "z-rf"], ["z-cc", "z-kg"],
+    ["z-rf", "z-yb"], ["z-rf", "z-kg"],
+    ["z-yb", "z-ln"], ["z-yb", "z-mv"],
+    ["z-ln", "z-an"], ["z-an", "z-mv"],
+    ["z-mv", "z-np"],
+    ["z-hk", "z-np"], ["z-hk", "z-qm"], ["z-hk", "z-nh"],
+    ["z-qm", "z-nh"],
+    ["z-mp", "z-nh"], ["z-mp", "z-ow"],
+    ["z-ow", "z-kg"]
+  ]
+}

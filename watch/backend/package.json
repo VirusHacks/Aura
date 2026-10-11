@@ -1,0 +1,16 @@
+{
+  "name": "aeroscope-watch-backend",
+  "private": true,
+  "type": "module",
+  "description": "AEROSCOPE watch API: trips, alerts, routes and push for the Apple Watch app (AWS SAM stack + local dev server).",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "node dev-server.mjs",
+    "test": "node --experimental-strip-types --no-warnings=ExperimentalWarning --test",
+    "validate": "sam validate --lint",
+    "build": "sam build",
+    "deploy": "sam deploy --guided"
+  }
+}

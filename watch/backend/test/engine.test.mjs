@@ -37,7 +37,7 @@ test("zone baselines equal the web app's DEMO_ZONES", async (t) => {
     t.skip(`web data not importable here (${err.code ?? err.message}); run with --experimental-strip-types`);
     return;
   }
-  const strip = ({ geo, ...rest }) => rest;
+  const strip = (zone) => Object.fromEntries(Object.entries(zone).filter(([key]) => key !== "geo"));
   assert.deepEqual(BUNDLED.zones.map(strip), web.DEMO_ZONES);
   assert.equal(BUNDLED.baselineTime, web.DEMO_DATASET.baselineTime);
 });

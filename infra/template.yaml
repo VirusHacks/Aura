@@ -1,0 +1,132 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  AEROSCOPE air-quality data layer. API Gateway (REST, API-key protected) +
+  Lambda serving zone baselines from DynamoDB, and scenario snapshot
+  persistence. The Next.js server calls this API; the key never reaches browsers.
+
+Parameters:
+  Stage:
+    Type: String
+    Default: prod
+  AllowedOrigin:
+    Type: String
+    Default: "https://example.com"
+    Description: Origin allowed for CORS (the Next.js app normally calls server-to-server, so this is a safety net).
+  BaselineProvenance:
+    Type: String
+    Default: demo
+    AllowedValues: [demo, verified]
+    Description: >
+      Provenance reported for the zone baselines. Keep "demo" unless the table
+      is populated from a verified monitoring source.
+
+Globals:
+  Function:
+    Runtime: nodejs22.x
+    Architectures: [arm64]
+    MemorySize: 256
+    Timeout: 5
+    Environment:
+      Variables:
+        ALLOWED_ORIGIN: !Ref AllowedOrigin
+
+Resources:
+  Api:
+    Type: AWS::Serverless::Api
+    Properties:
+      StageName: !Ref Stage
+      Auth:
+        ApiKeyRequired: true
+        UsagePlan:
+          CreateUsagePlan: PER_API
+          Throttle:
+            BurstLimit: 20
+            RateLimit: 10
+          Quota:
+            Limit: 50000
+            Period: MONTH
+
+  ZoneBaselinesTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: id
+          KeyType: HASH
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+
+  ScenarioSnapshotsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: id
+          KeyType: HASH
+      TimeToLiveSpecification:
+        AttributeName: expiresAt
+        Enabled: true
+
+  ZonesFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: lambda/
+      Handler: zones.handler
+      Environment:
+        Variables:
+          ZONES_TABLE: !Ref ZoneBaselinesTable
+          BASELINE_PROVENANCE: !Ref BaselineProvenance
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref ZoneBaselinesTable
+      Events:
+        GetZones:
+          Type: Api
+          Properties:
+            RestApiId: !Ref Api
+            Path: /zones
+            Method: GET
+
+  ScenariosFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: lambda/
+      Handler: scenarios.handler
+      Environment:
+        Variables:
+          SCENARIOS_TABLE: !Ref ScenarioSnapshotsTable
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref ScenarioSnapshotsTable
+      Events:
+        ListScenarios:
+          Type: Api
+          Properties:
+            RestApiId: !Ref Api
+            Path: /scenarios
+            Method: GET
+        SaveScenario:
+          Type: Api
+          Properties:
+            RestApiId: !Ref Api
+            Path: /scenarios
+            Method: POST
+
+Outputs:
+  ApiUrl:
+    Description: Base URL — set as AEROSCOPE_AQ_API_URL in the Next.js server environment.
+    Value: !Sub "https://${Api}.execute-api.${AWS::Region}.amazonaws.com/${Stage}"
+  ApiKeyId:
+    Description: Fetch the key value with `aws apigateway get-api-key --api-key <id> --include-value`.
+    Value: !Ref ApiApiKey
+  ZoneBaselinesTableName:
+    Value: !Ref ZoneBaselinesTable
+  ScenarioSnapshotsTableName:
+    Value: !Ref ScenarioSnapshotsTable

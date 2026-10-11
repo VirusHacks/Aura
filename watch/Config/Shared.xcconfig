@@ -1,0 +1,16 @@
+// Shared build settings for the AEROSCOPE Apple apps.
+// Override any of these in Config/Local.xcconfig (git-ignored) — e.g. your
+// team ID and bundle prefix — without touching the project file.
+
+// Your Apple Developer team ID (Signing & Capabilities). Empty builds for the simulator.
+DEVELOPMENT_TEAM =
+
+// Change this to a prefix you own before running on a device.
+AEROSCOPE_BUNDLE_PREFIX = com.aeroscope
+
+// Optional default backend URL baked into both apps (the iPhone app can change it at runtime).
+// Example: https:/$()/abc123.execute-api.ap-south-1.amazonaws.com/prod
+// (`/$()/` stops xcconfig treating `//` as a comment.)
+AEROSCOPE_API_BASE_URL =
+
+#include? "Local.xcconfig"

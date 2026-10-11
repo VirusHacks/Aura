@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- Merged with the keys Xcode generates from INFOPLIST_KEY_* build settings. -->
+	<key>WKApplication</key>
+	<true/>
+	<key>AeroscopeAPIBaseURL</key>
+	<string>$(AEROSCOPE_API_BASE_URL)</string>
+	<!-- Continue trip location updates when the wrist drops. Checked at runtime before use. -->
+	<key>WKBackgroundModes</key>
+	<array>
+		<string>location</string>
+	</array>
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<!-- Lets the local dev server (http://localhost:8787 or *.local) work; the API itself is HTTPS. -->
+		<key>NSAllowsLocalNetworking</key>
+		<true/>
+	</dict>
+</dict>
+</plist>

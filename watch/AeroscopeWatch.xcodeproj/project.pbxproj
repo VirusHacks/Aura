@@ -1,0 +1,477 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		AE0000000000000000000014 /* AeroscopeKit in Frameworks */ = {isa = PBXBuildFile; productRef = AE000000000000000000000E /* AeroscopeKit */; };
+		AE0000000000000000000024 /* AeroscopeKit in Frameworks */ = {isa = PBXBuildFile; productRef = AE000000000000000000000F /* AeroscopeKit */; };
+		AE0000000000000000000029 /* AeroscopeWatch.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = AE0000000000000000000007 /* AeroscopeWatch.app */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		AE000000000000000000002B /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = AE0000000000000000000001 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = AE0000000000000000000010;
+			remoteInfo = AeroscopeWatch;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		AE0000000000000000000028 /* Embed Watch Content */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "$(CONTENTS_FOLDER_PATH)/Watch";
+			dstSubfolderSpec = 16;
+			files = (
+				AE0000000000000000000029 /* AeroscopeWatch.app in Embed Watch Content */,
+			);
+			name = "Embed Watch Content";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
+/* Begin PBXFileReference section */
+		AE0000000000000000000007 /* AeroscopeWatch.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = AeroscopeWatch.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		AE0000000000000000000008 /* AeroscopeCompanion.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = AeroscopeCompanion.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		AE0000000000000000000009 /* Shared.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Shared.xcconfig; sourceTree = "<group>"; };
+		AE000000000000000000000A /* AeroscopeWatch-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "AeroscopeWatch-Info.plist"; sourceTree = "<group>"; };
+		AE000000000000000000000B /* AeroscopeCompanion-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "AeroscopeCompanion-Info.plist"; sourceTree = "<group>"; };
+		AE000000000000000000000C /* AeroscopeWatch.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = AeroscopeWatch.entitlements; sourceTree = "<group>"; };
+		AE0000000000000000000033 /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedRootGroup section */
+		AE0000000000000000000005 /* AeroscopeWatch */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = AeroscopeWatch;
+			sourceTree = "<group>";
+		};
+		AE0000000000000000000006 /* AeroscopeCompanion */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = AeroscopeCompanion;
+			sourceTree = "<group>";
+		};
+/* End PBXFileSystemSynchronizedRootGroup section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		AE0000000000000000000012 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				AE0000000000000000000014 /* AeroscopeKit in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		AE0000000000000000000022 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				AE0000000000000000000024 /* AeroscopeKit in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		AE0000000000000000000002 = {
+			isa = PBXGroup;
+			children = (
+				AE0000000000000000000033 /* README.md */,
+				AE0000000000000000000005 /* AeroscopeWatch */,
+				AE0000000000000000000006 /* AeroscopeCompanion */,
+				AE0000000000000000000004 /* Config */,
+				AE0000000000000000000003 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		AE0000000000000000000003 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				AE0000000000000000000007 /* AeroscopeWatch.app */,
+				AE0000000000000000000008 /* AeroscopeCompanion.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		AE0000000000000000000004 /* Config */ = {
+			isa = PBXGroup;
+			children = (
+				AE0000000000000000000009 /* Shared.xcconfig */,
+				AE000000000000000000000A /* AeroscopeWatch-Info.plist */,
+				AE000000000000000000000B /* AeroscopeCompanion-Info.plist */,
+				AE000000000000000000000C /* AeroscopeWatch.entitlements */,
+			);
+			path = Config;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		AE0000000000000000000010 /* AeroscopeWatch */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = AE0000000000000000000015 /* Build configuration list for PBXNativeTarget "AeroscopeWatch" */;
+			buildPhases = (
+				AE0000000000000000000011 /* Sources */,
+				AE0000000000000000000012 /* Frameworks */,
+				AE0000000000000000000013 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				AE0000000000000000000005 /* AeroscopeWatch */,
+			);
+			name = AeroscopeWatch;
+			packageProductDependencies = (
+				AE000000000000000000000E /* AeroscopeKit */,
+			);
+			productName = AeroscopeWatch;
+			productReference = AE0000000000000000000007 /* AeroscopeWatch.app */;
+			productType = "com.apple.product-type.application";
+		};
+		AE0000000000000000000020 /* AeroscopeCompanion */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = AE0000000000000000000025 /* Build configuration list for PBXNativeTarget "AeroscopeCompanion" */;
+			buildPhases = (
+				AE0000000000000000000021 /* Sources */,
+				AE0000000000000000000022 /* Frameworks */,
+				AE0000000000000000000023 /* Resources */,
+				AE0000000000000000000028 /* Embed Watch Content */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				AE000000000000000000002A /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				AE0000000000000000000006 /* AeroscopeCompanion */,
+			);
+			name = AeroscopeCompanion;
+			packageProductDependencies = (
+				AE000000000000000000000F /* AeroscopeKit */,
+			);
+			productName = AeroscopeCompanion;
+			productReference = AE0000000000000000000008 /* AeroscopeCompanion.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		AE0000000000000000000001 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 2700;
+				LastUpgradeCheck = 2700;
+				TargetAttributes = {
+					AE0000000000000000000010 = {
+						CreatedOnToolsVersion = 27.0;
+					};
+					AE0000000000000000000020 = {
+						CreatedOnToolsVersion = 27.0;
+					};
+				};
+			};
+			buildConfigurationList = AE0000000000000000000030 /* Build configuration list for PBXProject "AeroscopeWatch" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = AE0000000000000000000002;
+			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				AE000000000000000000000D /* XCLocalSwiftPackageReference "AeroscopeKit" */,
+			);
+			preferredProjectObjectVersion = 77;
+			productRefGroup = AE0000000000000000000003 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				AE0000000000000000000020 /* AeroscopeCompanion */,
+				AE0000000000000000000010 /* AeroscopeWatch */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		AE0000000000000000000013 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		AE0000000000000000000023 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		AE0000000000000000000011 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		AE0000000000000000000021 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		AE000000000000000000002A /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = AE0000000000000000000010 /* AeroscopeWatch */;
+			targetProxy = AE000000000000000000002B /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		AE0000000000000000000016 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = Config/AeroscopeWatch.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "Config/AeroscopeWatch-Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = AEROSCOPE;
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "AEROSCOPE matches your position to a Delhi air-quality zone so it can show local readings and warn you about polluted areas on your trip.";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
+				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = "$(AEROSCOPE_BUNDLE_PREFIX).companion";
+				INFOPLIST_KEY_WKRunsIndependentlyOfCompanionApp = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "$(AEROSCOPE_BUNDLE_PREFIX).companion.watchkitapp";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = watchos;
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				WATCHOS_DEPLOYMENT_TARGET = 10.0;
+			};
+			name = Debug;
+		};
+		AE0000000000000000000017 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = Config/AeroscopeWatch.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "Config/AeroscopeWatch-Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = AEROSCOPE;
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "AEROSCOPE matches your position to a Delhi air-quality zone so it can show local readings and warn you about polluted areas on your trip.";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
+				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = "$(AEROSCOPE_BUNDLE_PREFIX).companion";
+				INFOPLIST_KEY_WKRunsIndependentlyOfCompanionApp = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "$(AEROSCOPE_BUNDLE_PREFIX).companion.watchkitapp";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = watchos;
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				VALIDATE_PRODUCT = YES;
+				WATCHOS_DEPLOYMENT_TARGET = 10.0;
+			};
+			name = Release;
+		};
+		AE0000000000000000000026 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "Config/AeroscopeCompanion-Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = AEROSCOPE;
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = UIInterfaceOrientationPortrait;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "$(AEROSCOPE_BUNDLE_PREFIX).companion";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
+		AE0000000000000000000027 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "Config/AeroscopeCompanion-Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = AEROSCOPE;
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = UIInterfaceOrientationPortrait;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "$(AEROSCOPE_BUNDLE_PREFIX).companion";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = 1;
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		AE0000000000000000000031 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = AE0000000000000000000009 /* Shared.xcconfig */;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		AE0000000000000000000032 /* Release */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = AE0000000000000000000009 /* Shared.xcconfig */;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_NO_COMMON_BLOCKS = YES;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				SWIFT_COMPILATION_MODE = wholemodule;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		AE0000000000000000000015 /* Build configuration list for PBXNativeTarget "AeroscopeWatch" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				AE0000000000000000000016 /* Debug */,
+				AE0000000000000000000017 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		AE0000000000000000000025 /* Build configuration list for PBXNativeTarget "AeroscopeCompanion" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				AE0000000000000000000026 /* Debug */,
+				AE0000000000000000000027 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		AE0000000000000000000030 /* Build configuration list for PBXProject "AeroscopeWatch" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				AE0000000000000000000031 /* Debug */,
+				AE0000000000000000000032 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		AE000000000000000000000D /* XCLocalSwiftPackageReference "AeroscopeKit" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = AeroscopeKit;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		AE000000000000000000000E /* AeroscopeKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = AE000000000000000000000D /* XCLocalSwiftPackageReference "AeroscopeKit" */;
+			productName = AeroscopeKit;
+		};
+		AE000000000000000000000F /* AeroscopeKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = AE000000000000000000000D /* XCLocalSwiftPackageReference "AeroscopeKit" */;
+			productName = AeroscopeKit;
+		};
+/* End XCSwiftPackageProductDependency section */
+	};
+	rootObject = AE0000000000000000000001 /* Project object */;
+}
